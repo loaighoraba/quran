@@ -1,0 +1,82 @@
+import pytest
+
+from app.scripts.morphology import build_rows, parse_features, parse_morphology
+
+LINES = [
+    "1:1:1:1\tبِ\tP\tP|PREF|LEM:ب\n",
+    "1:1:1:2\tسْمِ\tN\tROOT:سمو|LEM:اسْم|M|GEN\n",
+    "1:1:2:1\tٱللَّهِ\tN\tPN|ROOT:أله|LEM:اللَّه|GEN\n",
+    "2:1:1:1\tالٓمٓ\tP\tINL|\n",
+]
+
+
+def test_parse_features_stem():
+    assert parse_features("ROOT:رحم|LEM:رَحِيم|MS|GEN|ADJ") == {
+        "root": "رحم",
+        "lemma": "رَحِيم",
+        "verb_form": None,
+        "mood": None,
+        "family": None,
+        "kind": "stem",
+        "features": ["MS", "GEN", "ADJ"],
+    }
+
+
+def test_parse_features_prefix():
+    features = parse_features("CONJ|PREF|LEM:و")
+    assert features["kind"] == "prefix"
+    assert features["lemma"] == "و"
+    assert features["features"] == ["CONJ"]
+
+
+def test_parse_features_verb():
+    features = parse_features("IMPF|VF:1|ROOT:عبد|LEM:عَبَدَ|1P|MOOD:IND")
+    assert features["verb_form"] == 1
+    assert features["mood"] == "IND"
+    assert features["features"] == ["IMPF", "1P"]
+
+
+def test_parse_features_ignores_trailing_separator():
+    assert parse_features("INL|")["features"] == ["INL"]
+
+
+def test_parse_features_rejects_unknown_key():
+    with pytest.raises(ValueError):
+        parse_features("XYZ:1")
+
+
+def test_parse_morphology_keeps_empty_suffix_form():
+    segments = parse_morphology([*LINES[:3], "1:1:2:2\t\tN\tPRON|SUFF|1S\n"])
+    assert segments[-1].form == ""
+    assert parse_features(segments[-1].features)["kind"] == "suffix"
+
+
+def test_parse_morphology_rejects_gaps():
+    with pytest.raises(ValueError):
+        parse_morphology([LINES[0], "1:1:1:3\tسْمِ\tN\tM|GEN\n"])
+    with pytest.raises(ValueError):
+        parse_morphology([LINES[0], "1:1:3:1\tسْمِ\tN\tM|GEN\n"])
+
+
+def test_parse_morphology_rejects_unknown_pos():
+    with pytest.raises(ValueError):
+        parse_morphology(["1:1:1:1\tبِ\tX\tP|PREF\n"])
+
+
+def test_build_rows():
+    segments = parse_morphology(LINES[:4])
+    words, rows = build_rows(segments, {(1, 1): 1, (2, 1): 8})
+    assert [(w["id"], w["aya_id"], w["number"]) for w in words] == [(1, 1, 1), (2, 1, 2), (3, 8, 1)]
+    assert words[0]["text_uthmani"] == "بِسْمِ"
+    assert words[1]["text_normalized"] == "الله"
+    assert [(r["id"], r["word_id"], r["number"]) for r in rows] == [
+        (1, 1, 1),
+        (2, 1, 2),
+        (3, 2, 1),
+        (4, 3, 1),
+    ]
+
+
+def test_build_rows_rejects_missing_ayas():
+    with pytest.raises(ValueError):
+        build_rows(parse_morphology(LINES[:3]), {(1, 1): 1, (1, 2): 2})
