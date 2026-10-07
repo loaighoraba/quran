@@ -1,6 +1,6 @@
 # quran
 
-FastAPI service.
+A web application that allowes donig statistics on Quran.
 
 ## Development
 
