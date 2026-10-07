@@ -78,7 +78,8 @@ jobs:
 
       # Applies .do/app.yaml, then App Platform builds the Dockerfile, runs migrations
       # (PRE_DEPLOY job) and rolls out the new version
-      - uses: digitalocean/app_action/deploy@cc55bc9b848d25f9c1c9f831cf843fbab3fbfb15 # v2.0.11
+      - id: deploy
+        uses: digitalocean/app_action/deploy@cc55bc9b848d25f9c1c9f831cf843fbab3fbfb15 # v2.0.11
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
@@ -88,3 +89,13 @@ jobs:
           project_id: ${{ vars.DO_PROJECT_ID }}
           print_build_logs: true
           print_deploy_logs: true
+
+      - name: Show app URLs
+        env:
+          APP: ${{ steps.deploy.outputs.app }}
+        run: |
+          {
+            echo "### Deployed"
+            echo "- Live URL: $(jq -r '.live_url' <<< "$APP")"
+            echo "- Default ingress (Cloudflare CNAME target): $(jq -r '.default_ingress' <<< "$APP")"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
