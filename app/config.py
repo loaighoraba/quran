@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +14,10 @@ class Settings(BaseSettings):
     postgres_user: str
     postgres_password: SecretStr
     postgres_db: str
+    # libpq sslmode; use "require" (or stricter) for hosted databases such as Supabase
+    postgres_sslmode: Literal[
+        "disable", "allow", "prefer", "require", "verify-ca", "verify-full"
+    ] = "prefer"
 
     db_echo: bool = False
 
@@ -26,6 +31,7 @@ class Settings(BaseSettings):
             host=self.postgres_host,
             port=self.postgres_port,
             database=self.postgres_db,
+            query={"sslmode": self.postgres_sslmode},
         )
 
 

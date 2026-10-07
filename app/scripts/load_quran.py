@@ -11,10 +11,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete, insert
+from psycopg import sql
+from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 from app.arabic import normalize_arabic
-from app.db import SessionLocal
+from app.db import Base, SessionLocal
 from app.models import Aya, Segment, Surah, Word
 from app.scripts.morphology import build_rows, parse_morphology
 
@@ -107,6 +109,19 @@ def check_aya_counts(surah_rows: list[dict[str, Any]], aya_rows: list[dict[str, 
         raise ValueError("Aya counts in the texts don't match quran-data.xml")
 
 
+def copy_rows(session: Session, model: type[Base], rows: list[dict[str, Any]]) -> None:
+    """Bulk-load rows with COPY: one stream instead of a network round trip per batch."""
+    columns = list(rows[0])
+    statement = sql.SQL("COPY {} ({}) FROM STDIN").format(
+        sql.Identifier(model.__tablename__),
+        sql.SQL(", ").join(map(sql.Identifier, columns)),
+    )
+    cursor = session.connection().connection.cursor()
+    with cursor.copy(statement) as copy:
+        for row in rows:
+            copy.write_row([row[column] for column in columns])
+
+
 def main() -> None:
     with SIMPLE_PATH.open(encoding="utf-8") as f:
         simple = parse_text(f)
@@ -123,10 +138,10 @@ def main() -> None:
     with SessionLocal.begin() as session:
         for model in (Segment, Word, Aya, Surah):
             session.execute(delete(model))
-        session.execute(insert(Surah), surah_rows)
-        session.execute(insert(Aya), aya_rows)
-        session.execute(insert(Word), word_rows)
-        session.execute(insert(Segment), segment_rows)
+        copy_rows(session, Surah, surah_rows)
+        copy_rows(session, Aya, aya_rows)
+        copy_rows(session, Word, word_rows)
+        copy_rows(session, Segment, segment_rows)
 
     print(
         f"Loaded {len(surah_rows)} surahs, {len(aya_rows)} ayas, "

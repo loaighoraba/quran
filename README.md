@@ -64,6 +64,14 @@ uv run alembic revision --autogenerate -m "describe the change"
 uv run alembic upgrade head
 ```
 
+### Supabase Data API
+
+Tables are kept out of Supabase's Data API (REST): migration `3f8eb9f392f5`
+enables row-level security (RLS) with no policies on every table and revokes the
+API roles' grants. The app connects as the table owner, so RLS doesn't affect it.
+Autogenerate doesn't add RLS, so **every migration that creates a table must also
+run** `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`.
+
 ## Claude Code skills
 
 `.claude/skills/` holds agent skills for Claude Code. `fastapi` is a symlink into
