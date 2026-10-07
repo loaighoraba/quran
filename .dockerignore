@@ -1,0 +1,13 @@
+# Keep the image to what the app and migrations need
+.git
+.github
+.venv
+.env
+.claude
+.do
+.pytest_cache
+.ruff_cache
+**/__pycache__
+*.py[oc]
+datasources
+tests

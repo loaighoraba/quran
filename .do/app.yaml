@@ -1,0 +1,45 @@
+# DigitalOcean App Platform spec, applied by the deploy job in .github/workflows/ci.yml.
+# ${...} values are filled from GitHub secrets at deploy time; never put secrets here.
+name: quran-api
+region: fra
+
+# App-level env vars are available to every component (the service and the migrate job)
+envs:
+  - key: POSTGRES_HOST
+    value: ${POSTGRES_HOST}
+    type: SECRET
+  - key: POSTGRES_PORT
+    value: "5432"
+  - key: POSTGRES_USER
+    value: ${POSTGRES_USER}
+    type: SECRET
+  - key: POSTGRES_PASSWORD
+    value: ${POSTGRES_PASSWORD}
+    type: SECRET
+  - key: POSTGRES_DB
+    value: postgres
+  - key: POSTGRES_SSLMODE
+    value: require
+
+services:
+  - name: api
+    git:
+      repo_clone_url: https://github.com/loaighoraba/quran.git
+      branch: main
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    health_check:
+      http_path: /health
+
+jobs:
+  # Runs before each deployment; a failed migration stops the deploy
+  - name: migrate
+    kind: PRE_DEPLOY
+    git:
+      repo_clone_url: https://github.com/loaighoraba/quran.git
+      branch: main
+    dockerfile_path: Dockerfile
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    run_command: alembic upgrade head

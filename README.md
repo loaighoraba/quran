@@ -72,6 +72,37 @@ API roles' grants. The app connects as the table owner, so RLS doesn't affect it
 Autogenerate doesn't add RLS, so **every migration that creates a table must also
 run** `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`.
 
+## Deployment
+
+The API runs on DigitalOcean App Platform (app `quran-api`, region `fra`) as a
+Docker container. The database is Supabase.
+
+On every push to `main`, after the `test` job passes, the `deploy` job in
+`.github/workflows/ci.yml` applies [.do/app.yaml](.do/app.yaml). App Platform
+then builds the `Dockerfile`, runs `alembic upgrade head` as a pre-deploy job (a
+failed migration stops the deploy), and rolls out the new version. `/health` is
+the health check.
+
+The data loader is not part of deployment. Run it from your machine against
+Supabase when the source data changes.
+
+Required GitHub settings (Settings → Secrets and variables → Actions):
+
+| Name | Kind | Value |
+|---|---|---|
+| `DIGITALOCEAN_ACCESS_TOKEN` | secret | DigitalOcean API token with App Platform read/write access |
+| `POSTGRES_HOST` | secret | Supabase session pooler host |
+| `POSTGRES_USER` | secret | `postgres.<project-ref>` |
+| `POSTGRES_PASSWORD` | secret | Supabase database password |
+| `DO_PROJECT_ID` | variable | DigitalOcean project to create the app in (used on first deploy only) |
+
+Build and run the image locally:
+
+```sh
+docker build -t quran-api .
+docker run --rm --env-file .env -p 8080:8080 quran-api
+```
+
 ## Claude Code skills
 
 `.claude/skills/` holds agent skills for Claude Code. `fastapi` is a symlink into
