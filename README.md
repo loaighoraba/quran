@@ -1,6 +1,6 @@
 # quran
 
-A web application that allows donig statistics on Quran.
+A web application that allows doing statistics on Quran.
 
 ## Development
 
@@ -74,8 +74,8 @@ run** `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`.
 
 ## Deployment
 
-The API runs on DigitalOcean App Platform (app `quran-api`, region `fra`) as a
-Docker container. The database is Supabase.
+The API runs on DigitalOcean App Platform (app `quran`, region `fra`) as a
+Docker container, served at https://quran.loaighoraba.dev (CNAME on Cloudflare, DNS only). The database is Supabase.
 
 On every push to `main`, after the `test` job passes, the `deploy` job in
 `.github/workflows/ci.yml` applies [.do/app.yaml](.do/app.yaml). App Platform
@@ -99,8 +99,8 @@ Required GitHub settings (Settings → Secrets and variables → Actions):
 Build and run the image locally:
 
 ```sh
-docker build -t quran-api .
-docker run --rm --env-file .env -p 8080:8080 quran-api
+docker build -t quran .
+docker run --rm --env-file .env -p 8080:8080 quran
 ```
 
 ## Claude Code skills

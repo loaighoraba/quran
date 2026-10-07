@@ -1,7 +1,13 @@
 # DigitalOcean App Platform spec, applied by the deploy job in .github/workflows/ci.yml.
 # ${...} values are filled from GitHub secrets at deploy time; never put secrets here.
-name: quran-api
+name: quran
 region: fra
+
+# DNS is on Cloudflare: CNAME quran -> the app's default *.ondigitalocean.app host,
+# set to "DNS only" (not proxied) so App Platform can issue the certificate.
+domains:
+  - domain: quran.loaighoraba.dev
+    type: PRIMARY
 
 # App-level env vars are available to every component (the service and the migrate job)
 envs:
