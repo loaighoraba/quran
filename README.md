@@ -1,6 +1,6 @@
 # quran
 
-A web application that allowes donig statistics on Quran.
+A web application that allows donig statistics on Quran.
 
 ## Development
 
