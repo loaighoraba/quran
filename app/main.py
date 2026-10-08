@@ -15,6 +15,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Quran API", lifespan=lifespan)
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"message": "Welcome to the Quran statistics API! Work is under progress"}
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
