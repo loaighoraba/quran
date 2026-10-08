@@ -247,7 +247,6 @@ export default function App() {
                 </>
               }
             />
-            <Tile label="Uthmani words" value={summary.data?.words_uthmani} loading={summary.loading} />
             <Tile label="Roots" value={summary.data?.roots} loading={summary.loading} />
             <Tile label="Lemmas" value={summary.data?.lemmas} loading={summary.loading} />
           </dl>
