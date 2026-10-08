@@ -1,0 +1,41 @@
+"""Interactive IPython shell with the database session and models loaded, like `rails console`.
+
+Run with: uv run python -m app.scripts.console
+
+Connects to the database in .env, which may be production; `s` is a plain session, so
+nothing is written unless you call s.commit().
+"""
+
+from IPython import start_ipython
+from sqlalchemy import delete, func, insert, select, text, update
+from traitlets.config import Config
+
+from app.db import SessionLocal, engine
+from app.models import Aya, Segment, Surah, Word
+
+
+def main() -> None:
+    namespace = {
+        "engine": engine,
+        "s": SessionLocal(),
+        "select": select,
+        "insert": insert,
+        "update": update,
+        "delete": delete,
+        "func": func,
+        "text": text,
+        "Aya": Aya,
+        "Segment": Segment,
+        "Surah": Surah,
+        "Word": Word,
+    }
+    config = Config()
+    config.TerminalInteractiveShell.banner2 = (
+        f"Connected to {engine.url.render_as_string(hide_password=True)}\n"
+        f"Loaded: {', '.join(namespace)}\n"
+    )
+    start_ipython(argv=[], user_ns=namespace, config=config)
+
+
+if __name__ == "__main__":
+    main()

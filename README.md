@@ -11,6 +11,7 @@ uv run alembic upgrade head  # apply database migrations
 uv run python -m app.scripts.load_quran  # load the Quran text (safe to re-run)
 uv run fastapi dev        # http://127.0.0.1:8000, docs at /docs
 uv run pytest
+uv run python -m app.scripts.console  # IPython shell with the DB session and models loaded
 ```
 
 ## Quran data
