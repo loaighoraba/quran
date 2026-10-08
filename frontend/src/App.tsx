@@ -273,6 +273,37 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {/* Both sources require being named, with a link, wherever their data is used */}
+      <footer>
+        <p>
+          Quran text from the{' '}
+          <a href="https://tanzil.net" target="_blank" rel="noreferrer">
+            Tanzil Project
+          </a>{' '}
+          (
+          <a
+            href="https://creativecommons.org/licenses/by/3.0/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY 3.0
+          </a>
+          ). Morphology, roots and lemmas from the{' '}
+          <a href="https://corpus.quran.com" target="_blank" rel="noreferrer">
+            Quranic Arabic Corpus
+          </a>{' '}
+          (
+          <a href="https://corpus.quran.com/license.jsp" target="_blank" rel="noreferrer">
+            GNU GPL
+          </a>
+          ), via{' '}
+          <a href="https://github.com/mustafa0x/quran-morphology" target="_blank" rel="noreferrer">
+            mustafa0x/quran-morphology
+          </a>
+          .
+        </p>
+      </footer>
     </main>
   )
 }

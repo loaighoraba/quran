@@ -267,6 +267,17 @@ button.bar-label:hover {
   text-align: right;
 }
 
+footer {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 8px 0 0;
+}
+
+footer a {
+  color: var(--accent);
+}
+
 .error {
   color: var(--error);
   margin: 12px 0 0;
