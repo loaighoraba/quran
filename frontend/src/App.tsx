@@ -69,9 +69,9 @@ function readUrl() {
   }
   return {
     ranges: params.get('range') ?? '',
-    countBy: by('by', 'root'),
+    countBy: by('by', 'word'),
     q: params.get('q') ?? '',
-    topBy: by('top', 'root'),
+    topBy: by('top', 'word'),
     limit: Number(params.get('limit')) || 20,
   }
 }
