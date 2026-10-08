@@ -10,7 +10,8 @@ wheels/
 .venv
 
 # Local environment
-.env
+.env*
+!.env.example
 
 
 # others

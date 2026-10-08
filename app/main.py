@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.db import SessionDep, engine
+from app.routers import stats
 
 
 @asynccontextmanager
@@ -13,6 +14,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Quran API", lifespan=lifespan)
+app.include_router(stats.router)
 
 
 @app.get("/")

@@ -1,6 +1,6 @@
 import pytest
 
-from app.scripts.morphology import build_rows, parse_features, parse_morphology
+from app.scripts.morphology import build_rows, parse_features, parse_morphology, split_vocative
 
 LINES = [
     "1:1:1:1\tبِ\tP\tP|PREF|LEM:ب\n",
@@ -81,3 +81,19 @@ def test_build_rows():
 def test_build_rows_rejects_missing_ayas():
     with pytest.raises(ValueError):
         build_rows(parse_morphology(LINES[:3]), {(1, 1): 1, (1, 2): 2})
+
+
+def segment(form_normalized, kind="stem", features=()):
+    return {"form_normalized": form_normalized, "kind": kind, "features": list(features)}
+
+
+def test_split_vocative():
+    assert split_vocative([segment("مريم")]) == ["مريم"]
+    # يَٰمَرْيَمُ
+    assert split_vocative([segment("ي", "prefix", ["VOC"]), segment("مريم")]) == ["يا", "مريم"]
+    # وَيَٰٓـَٔادَمُ
+    assert split_vocative(
+        [segment("و", "prefix", ["CONJ"]), segment("ي", "prefix", ["VOC"]), segment("ادم")]
+    ) == ["ويا", "ادم"]
+    # The vocative م suffix of ٱللَّهُمَّ isn't written as a separate word
+    assert split_vocative([segment("الله"), segment("م", "suffix", ["VOC"])]) == ["اللهم"]

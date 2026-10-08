@@ -14,6 +14,8 @@ type AyaKey = tuple[int, int]
 type WordKey = tuple[int, int, int]
 
 POS_VALUES = {"N", "V", "P"}
+# The simple script writes the vocative as a separate word: يمريم is يا مريم
+VOCATIVE_WORD = "يا"
 # key:value features promoted to their own segment columns
 KEYED_FEATURES = {
     "ROOT": "root",
@@ -97,6 +99,19 @@ def parse_features(raw: str) -> dict[str, Any]:
     return columns
 
 
+def split_vocative(segments: list[dict[str, Any]]) -> list[str]:
+    """A word's normalized text, split after a vocative prefix as in the simple script.
+
+    Takes the word's segment rows in order; e.g. يَٰمَرْيَمُ -> [يا, مريم], وَيَٰٓـَٔادَمُ -> [ويا, ادم].
+    """
+    for index, segment in enumerate(segments):
+        if segment["kind"] == "prefix" and "VOC" in segment["features"]:
+            before = "".join(s["form_normalized"] for s in segments[:index])
+            after = "".join(s["form_normalized"] for s in segments[index + 1 :])
+            return [before + VOCATIVE_WORD, after]
+    return ["".join(segment["form_normalized"] for segment in segments)]
+
+
 def build_rows(
     segments: list[MorphSegment], aya_ids: dict[AyaKey, int]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -112,6 +127,18 @@ def build_rows(
 
     word_rows, segment_rows = [], []
     for word_id, ((surah, aya, number), word_segments) in enumerate(words.items(), start=1):
+        rows = [
+            {
+                "id": len(segment_rows) + index,
+                "word_id": word_id,
+                "number": segment.number,
+                "form": segment.form,
+                "form_normalized": normalize_arabic(segment.form),
+                "pos": segment.pos,
+                **parse_features(segment.features),
+            }
+            for index, segment in enumerate(word_segments, start=1)
+        ]
         text = "".join(segment.form for segment in word_segments)
         word_rows.append(
             {
@@ -120,18 +147,8 @@ def build_rows(
                 "number": number,
                 "text_uthmani": text,
                 "text_normalized": normalize_arabic(text),
+                "split_normalized": split_vocative(rows),
             }
         )
-        for segment in word_segments:
-            segment_rows.append(
-                {
-                    "id": len(segment_rows) + 1,
-                    "word_id": word_id,
-                    "number": segment.number,
-                    "form": segment.form,
-                    "form_normalized": normalize_arabic(segment.form),
-                    "pos": segment.pos,
-                    **parse_features(segment.features),
-                }
-            )
+        segment_rows.extend(rows)
     return word_rows, segment_rows

@@ -38,21 +38,69 @@ stripped from the aya text and recorded as `surahs.has_basmala` instead.
 Morphology is in Uthmani script and goes into two tables:
 
 - `words`: one row per word (77,429), with `text_uthmani` (the word's segments
-  joined) and `text_normalized` (diacritics stripped, for loose search).
+  joined), `text_normalized` (diacritics stripped, for loose search) and
+  `split_normalized` (see below).
 - `segments`: one row per morpheme (130,030), with `pos`, `kind`
-  (prefix/stem/suffix), `root`, `lemma`, `verb_form`, `mood`, `family`, and the
-  remaining tags in a `features` array.
+  (prefix/stem/suffix), `form_normalized`, `root`, `lemma`, `verb_form`, `mood`,
+  `family`, and the remaining tags in a `features` array.
 
-There is no per-word simple text: the simple script splits some words
-differently (`يَا أَيُّهَا` vs `يَٰٓأَيُّهَا`). To find a word whatever its
-spelling, search by lemma. For phrase search in simple script, use
-`ayas.text_simple`.
+The simple script writes the vocative يا as its own word (`يَا مَرْيَمُ`), where
+the Uthmani script attaches it (`يَٰمَرْيَمُ`). `words.split_normalized` holds
+the word split that way (`{يا,مريم}`; one element for every other word), and
+word counts use it: 77,790 words. The vocative م of `اللهمّ` is a suffix and isn't
+split. For phrase search in simple script, use `ayas.text_simple`.
 
 ```sql
 -- genitive nouns per root
 SELECT root, count(*) FROM segments
 WHERE pos = 'N' AND features @> '{GEN}' GROUP BY root ORDER BY 2 DESC;
 ```
+
+## Statistics API
+
+All endpoints take optional, repeatable `range` parameters (omit for the whole
+Quran): `2` (a surah), `2-4` (surahs), `2:255` (an aya), `2:1-20` (ayas of one
+surah) or `2:1-3:10` (across surahs). Overlapping ranges are counted once.
+
+- `GET /stats/summary`: aya, word, root and lemma counts. `words` counts the
+  vocative يا as its own word; `words_uthmani` counts Uthmani words.
+- `GET /stats/count?by=...&q=...`: occurrences of `q`, with a breakdown.
+- `GET /stats/top?by=...&limit=20`: the most frequent values.
+
+`by` sets what is matched, from strictest to loosest. Diacritics in `q` are
+ignored, except that a fully diacritized lemma matches only itself.
+
+| `by` | Matches | `q=مريم` / `q=قال` | Breakdown |
+|---|---|---|---|
+| `word` | The written word, vocative split off | مريم, يا مريم; not ومريم | Uthmani spellings |
+| `stem` | The word without prefixes and suffixes | also ومريم | diacritized stems |
+| `lemma` | Every form of a dictionary word | قال, قالوا, يقول, قل | matching lemmas |
+| `root` | Every word from the root (`رحم` or `ر ح م`) | | the root's lemmas |
+
+```sh
+curl "localhost:8000/stats/count?by=root&q=رحم&range=1&range=2:1-20"
+```
+
+## Tests
+
+`uv run pytest` runs the unit tests; the stats API tests are skipped. Those load
+the full Quran into a database, replacing its data, so they only run with
+`QURAN_TEST_DB=1` and refuse any host but localhost. Give them their own local
+database, set up once:
+
+```sh
+createdb quran_test
+cp .env .env.test  # then set POSTGRES_DB=quran_test and add QURAN_TEST_DB=1
+uv run --env-file .env.test alembic upgrade head
+```
+
+Then run every test with:
+
+```sh
+uv run --env-file .env.test pytest
+```
+
+Run `uv run --env-file .env.test alembic upgrade head` again after adding a migration.
 
 ## Database migrations
 
@@ -86,6 +134,15 @@ the health check.
 
 The data loader is not part of deployment. Run it from your machine against
 Supabase when the source data changes.
+
+`.env` points at your local database. Keep the Supabase credentials in
+`.env.production` (git-ignored, like every `.env*` except `.env.example`) and
+pass it explicitly; its values override `.env`:
+
+```sh
+uv run --env-file .env.production python -m app.scripts.load_quran
+uv run --env-file .env.production python -m app.scripts.console
+```
 
 Required GitHub settings (Settings → Secrets and variables → Actions):
 
