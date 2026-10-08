@@ -94,6 +94,7 @@ Required GitHub settings (Settings → Secrets and variables → Actions):
 | `POSTGRES_HOST` | secret | Supabase session pooler host |
 | `POSTGRES_USER` | secret | `postgres.<project-ref>` |
 | `POSTGRES_PASSWORD` | secret | Supabase database password |
+| `APP_DOMAIN` | variable | Custom domain the app is served at, e.g. `quran.loaighoraba.dev` |
 | `DO_PROJECT_ID` | variable | DigitalOcean project to create the app in (used on first deploy only) |
 
 Build and run the image locally:
