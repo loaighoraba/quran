@@ -161,7 +161,8 @@ const ar: Messages = {
   wholeQuran: 'القرآن كاملًا',
   presets: { fatiha: 'الفاتحة', baqarah: 'البقرة ١–٢٠', maryam: 'مريم', amma: 'جزء عمّ' },
   chooseSurah: 'اختر سورة',
-  surahOption: (s, n) => `${n}. ${s.name_arabic}`,
+  // A dash, not a period: next to Arabic-Indic digits a period reads like the zero ٠
+  surahOption: (s, n) => `${n} – ${s.name_arabic}`,
   ayasLabel: 'الآيات',
   to: 'إلى',
   of: (count) => `من ${count}`,
@@ -268,7 +269,15 @@ const NUMBER_LOCALES: Record<Locale, string> = { ar: 'ar-u-nu-arab', en: 'en' }
 export function makeI18n(locale: Locale) {
   const numbers = new Intl.NumberFormat(NUMBER_LOCALES[locale])
   const plurals = new Intl.PluralRules(locale)
-  const number = (n: number) => numbers.format(n)
+  // Amiri draws the Arabic thousands separator (٬) poorly, so group Arabic digits with a
+  // narrow no-break space instead: ٧٧ ٧٩٠
+  const number = (n: number) =>
+    locale === 'ar'
+      ? numbers
+          .formatToParts(n)
+          .map((part) => (part.type === 'group' ? '\u202F' : part.value))
+          .join('')
+      : numbers.format(n)
   return {
     locale,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
