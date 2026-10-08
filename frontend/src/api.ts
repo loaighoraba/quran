@@ -10,6 +10,15 @@ export interface Summary {
   lemmas: number
 }
 
+export interface Surah {
+  id: number
+  name_arabic: string
+  name_transliterated: string
+  name_english: string
+  revelation_type: 'meccan' | 'medinan'
+  aya_count: number
+}
+
 export interface Frequency {
   value: string
   count: number
@@ -50,3 +59,5 @@ export const getCount = (range: string[], by: CountBy, q: string, signal?: Abort
 
 export const getTop = (range: string[], by: CountBy, limit: number, signal?: AbortSignal) =>
   get<Frequency[]>('/stats/top', { range, by, limit }, signal)
+
+export const getSurahs = (signal?: AbortSignal) => get<Surah[]>('/surahs', {}, signal)

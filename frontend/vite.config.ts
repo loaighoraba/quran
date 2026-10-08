@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/stats': 'http://127.0.0.1:8000',
+      '/surahs': 'http://127.0.0.1:8000',
     },
   },
 })

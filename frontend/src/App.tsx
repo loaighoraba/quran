@@ -1,77 +1,59 @@
-import { useEffect, useEffectEvent, useState, type FormEvent, type ReactNode } from 'react'
-import { getCount, getSummary, getTop, type CountBy, type Frequency } from './api'
+import { useEffect, useEffectEvent, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { getCount, getSummary, getSurahs, getTop, type CountBy, type Frequency } from './api'
+import { Ar } from './Ar'
+import {
+  DEFAULT_LOCALE,
+  I18nContext,
+  LOCALES,
+  makeI18n,
+  useI18n,
+  type Locale,
+} from './i18n'
+import { RangeBuilder } from './RangeBuilder'
+import { findRangeProblem, splitRanges } from './ranges'
 
-// Arabic inside English text, isolated so its direction doesn't reorder the sentence
-const Ar = ({ children }: { children: string }) => (
-  <bdi lang="ar" className="arabic">
-    {children}
-  </bdi>
-)
+const BY_VALUES: CountBy[] = ['word', 'stem', 'lemma', 'root']
 
-const BY_OPTIONS: { value: CountBy; label: string; hint: ReactNode }[] = [
-  {
-    value: 'word',
-    label: 'Word',
-    hint: (
-      <>
-        The written word: <Ar>مريم</Ar> matches <Ar>يا مريم</Ar>, not <Ar>ومريم</Ar>
-      </>
-    ),
-  },
-  {
-    value: 'stem',
-    label: 'Stem',
-    hint: (
-      <>
-        Without prefixes and suffixes: <Ar>مريم</Ar> also matches <Ar>ومريم</Ar>
-      </>
-    ),
-  },
-  {
-    value: 'lemma',
-    label: 'Lemma',
-    hint: (
-      <>
-        Every form of a word: <Ar>قال</Ar> matches <Ar>قالوا</Ar>, <Ar>يقول</Ar>, <Ar>قل</Ar>
-      </>
-    ),
-  },
-  {
-    value: 'root',
-    label: 'Root',
-    hint: (
-      <>
-        Every word from the root: <Ar>رحم</Ar> matches <Ar>رحمن</Ar>, <Ar>رحيم</Ar>,{' '}
-        <Ar>رحمة</Ar>
-      </>
-    ),
-  },
-]
-
-const RANGE_EXAMPLES = [
-  { label: 'Al-Fatiha', value: '1' },
-  { label: 'Al-Baqarah 1–20', value: '2:1-20' },
-  { label: 'Maryam', value: '19' },
-  { label: 'Juz ʿAmma', value: '78-114' },
-]
+const PRESETS = [
+  { key: 'fatiha', value: '1' },
+  { key: 'baqarah', value: '2:1-20' },
+  { key: 'maryam', value: '19' },
+  { key: 'amma', value: '78-114' },
+] as const
 
 const TOP_LIMITS = [10, 20, 50, 100]
 
-// "2:1-20, 19  3:5" -> ["2:1-20", "19", "3:5"]
-const parseRanges = (text: string) => text.split(/[\s,،]+/).filter(Boolean)
+const LOCALE_STORAGE_KEY = 'locale'
+
+// Storage can be unavailable (private windows, blocked site data); the language is a convenience
+function storedLocale(): string | null {
+  try {
+    return localStorage.getItem(LOCALE_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function storeLocale(locale: Locale) {
+  try {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+  } catch {
+    // Not remembered; the URL still carries it
+  }
+}
+
+const asLocale = (value: string | null) => LOCALES.find((l) => l === value)
 
 // App state lives in the URL, so every view can be bookmarked and shared
 function readUrl() {
   const params = new URLSearchParams(window.location.search)
-  const by = (name: string, fallback: CountBy) => {
-    const value = params.get(name)
-    return BY_OPTIONS.some((o) => o.value === value) ? (value as CountBy) : fallback
-  }
+  const by = (name: string) => BY_VALUES.find((v) => v === params.get(name)) ?? 'word'
   return {
+    locale: asLocale(params.get('lang')) ?? asLocale(storedLocale()) ?? DEFAULT_LOCALE,
     ranges: params.get('range') ?? '',
-    countBy: by('by', 'word'),
+    countBy: by('by'),
     q: params.get('q') ?? '',
-    topBy: by('top', 'word'),
+    topBy: by('top'),
     limit: Number(params.get('limit')) || 20,
   }
 }
@@ -80,6 +62,7 @@ type State = ReturnType<typeof readUrl>
 
 function writeUrl(state: State) {
   const params = new URLSearchParams()
+  params.set('lang', state.locale)
   if (state.ranges) params.set('range', state.ranges)
   if (state.q) params.set('q', state.q)
   params.set('by', state.countBy)
@@ -130,8 +113,9 @@ function useDelayed(active: boolean, delay = 200) {
 }
 
 function Spinner({ active }: { active: boolean }) {
+  const { t } = useI18n()
   const shown = useDelayed(active)
-  return shown ? <span className="spinner" role="status" aria-label="Loading" /> : null
+  return shown ? <span className="spinner" role="status" aria-label={t.loading} /> : null
 }
 
 export default function App() {
@@ -140,21 +124,48 @@ export default function App() {
   const [qInput, setQInput] = useState(state.q)
   const update = (changes: Partial<State>) => setState((s) => ({ ...s, ...changes }))
 
+  const i18n = useMemo(() => makeI18n(state.locale), [state.locale])
+  const { t, number, plural } = i18n
+
   useEffect(() => writeUrl(state), [state])
 
-  const ranges = parseRanges(state.ranges)
+  useEffect(() => {
+    document.documentElement.lang = i18n.locale
+    document.documentElement.dir = i18n.dir
+    document.title = i18n.t.title
+  }, [i18n])
+
+  const setLocale = (locale: Locale) => {
+    storeLocale(locale)
+    update({ locale })
+  }
+
+  const ranges = splitRanges(state.ranges)
   const rangeKey = ranges.join(' ')
 
-  const summary = useRequest(rangeKey, (signal) => getSummary(ranges, signal))
-  const count = useRequest(state.q ? `${rangeKey}|${state.countBy}|${state.q}` : null, (signal) =>
-    getCount(ranges, state.countBy, state.q, signal),
+  const surahs = useRequest('surahs', (signal) => getSurahs(signal))
+  const ayaCounts = useMemo(
+    () => new Map((surahs.data ?? []).map((s) => [s.id, s.aya_count])),
+    [surahs.data],
   )
-  const top = useRequest(`${rangeKey}|${state.topBy}|${state.limit}`, (signal) =>
+  // Checked here, once the surahs are known, so the message is in the UI language and no
+  // request is sent for ranges the API would reject
+  const rangeProblem = surahs.data ? findRangeProblem(state.ranges, ayaCounts) : null
+  const qProblem = state.countBy !== 'root' && /\s/.test(state.q)
+
+  const summary = useRequest(rangeProblem ? null : rangeKey, (signal) =>
+    getSummary(ranges, signal),
+  )
+  const count = useRequest(
+    state.q && !rangeProblem && !qProblem ? `${rangeKey}|${state.countBy}|${state.q}` : null,
+    (signal) => getCount(ranges, state.countBy, state.q, signal),
+  )
+  const top = useRequest(rangeProblem ? null : `${rangeKey}|${state.topBy}|${state.limit}`, (signal) =>
     getTop(ranges, state.topBy, state.limit, signal),
   )
 
-  // An invalid range fails every request; show its error once, under the range input
-  const rangeError = summary.error
+  // An invalid range would fail every request; show its message once, in the ayas card
+  const rangeError = rangeProblem ? t.rangeProblem(rangeProblem, number) : summary.error && t.requestFailed
 
   const applyRanges = (value: string) => {
     setRangeInput(value)
@@ -178,176 +189,184 @@ export default function App() {
     document.getElementById('count')?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const code = (text: string) => <code dir="ltr">{text}</code>
+  const link = (href: string, text: string) => (
+    <a href={href} target="_blank" rel="noreferrer">
+      {text}
+    </a>
+  )
+
   return (
-    <main>
-      <header>
-        {/* A plain link: reloads the page with no query string, clearing every filter */}
-        <h1>
-          <a href="/" className="home">
-            Quran Statistics
-          </a>
-        </h1>
-        <p className="subtitle">Count words, stems, lemmas and roots across any ayas.</p>
-      </header>
-
-      <section className="card">
-        <form className="range-form" onSubmit={submitRanges}>
-          <div className="label-row">
-            <label htmlFor="range">Ayas</label>
-            <Spinner active={summary.loading} />
-          </div>
-          <div className="row">
-            <input
-              id="range"
-              value={rangeInput}
-              onChange={(e) => setRangeInput(e.target.value)}
-              placeholder="The whole Quran — or e.g. 2:1-20, 19, 3:5"
-              dir="ltr"
-              autoComplete="off"
-            />
-            <button type="submit">Apply</button>
-          </div>
-        </form>
-        <div className="chips">
-          <button
-            type="button"
-            className={!state.ranges ? 'chip active' : 'chip'}
-            onClick={() => applyRanges('')}
-          >
-            Whole Quran
-          </button>
-          {RANGE_EXAMPLES.map((example) => (
+    <I18nContext value={i18n}>
+      <main>
+        <header>
+          <div className="title-row">
+            {/* A plain link: reloads the page with no query string, clearing every filter */}
+            <h1>
+              <a href={`/?lang=${state.locale}`} className="home">
+                {t.title}
+              </a>
+            </h1>
             <button
-              key={example.value}
               type="button"
-              className={state.ranges === example.value ? 'chip active' : 'chip'}
-              onClick={() => applyRanges(example.value)}
+              className="language"
+              lang={state.locale === 'ar' ? 'en' : 'ar'}
+              onClick={() => setLocale(state.locale === 'ar' ? 'en' : 'ar')}
             >
-              {example.label}
+              {t.otherLanguage}
             </button>
-          ))}
-        </div>
-        <p className="hint">
-          Separate ranges with commas: <code>2</code> a surah, <code>2-4</code> surahs,{' '}
-          <code>2:255</code> an aya, <code>2:1-20</code> ayas, <code>2:1-3:10</code> across surahs.
-        </p>
-
-        {rangeError ? (
-          <p className="error">{rangeError}</p>
-        ) : (
-          <dl className={summary.loading ? 'tiles loading' : 'tiles'}>
-            <Tile label="Ayas" value={summary.data?.ayas} loading={summary.loading} />
-            <Tile
-              label="Words"
-              value={summary.data?.words}
-              loading={summary.loading}
-              note={
-                <>
-                  with <Ar>يا</Ar> split off
-                </>
-              }
-            />
-            <Tile label="Roots" value={summary.data?.roots} loading={summary.loading} />
-            <Tile label="Lemmas" value={summary.data?.lemmas} loading={summary.loading} />
-          </dl>
-        )}
-      </section>
-
-      <section className="card" id="count">
-        <div className="card-heading">
-          <h2>
-            Count <Spinner active={count.loading} />
-          </h2>
-        </div>
-        <form className="count-form" onSubmit={submitCount}>
-          <ByPicker value={state.countBy} onChange={(countBy) => update({ countBy })} />
-          <div className="row">
-            <input
-              value={qInput}
-              onChange={(e) => setQInput(e.target.value)}
-              placeholder="مريم"
-              dir="rtl"
-              lang="ar"
-              className="arabic"
-              autoComplete="off"
-              aria-label="Text to count"
-            />
-            <button type="submit">Count</button>
           </div>
-          <p className="hint">{BY_OPTIONS.find((o) => o.value === state.countBy)?.hint}</p>
-        </form>
-        {count.error && !rangeError && <p className="error">{count.error}</p>}
-        {!count.data && count.loading && <SkeletonBars rows={3} />}
-        {count.data && !count.error && (
-          <div className={count.loading ? 'loading' : undefined}>
-            <p className="total">
-              <Ar>{count.data.query}</Ar>{' '}
-              occurs <strong>{count.data.count.toLocaleString()}</strong>{' '}
-              {count.data.count === 1 ? 'time' : 'times'}
-            </p>
-            {count.data.breakdown.length > 1 && <Bars items={count.data.breakdown} />}
-          </div>
-        )}
-      </section>
+          <p className="subtitle">{t.subtitle}</p>
+        </header>
 
-      <section className="card">
-        <div className="card-heading">
-          <h2>
-            Most frequent <Spinner active={top.loading} />
-          </h2>
-          <select
-            value={state.limit}
-            onChange={(e) => update({ limit: Number(e.target.value) })}
-            aria-label="Number of results"
-          >
-            {TOP_LIMITS.map((limit) => (
-              <option key={limit} value={limit}>
-                Top {limit}
-              </option>
+        <section className="card">
+          <div className="card-heading">
+            <h2>
+              {t.ayas} <Spinner active={summary.loading} />
+            </h2>
+          </div>
+          <div className="chips">
+            <button
+              type="button"
+              className={!state.ranges ? 'chip active' : 'chip'}
+              onClick={() => applyRanges('')}
+            >
+              {t.wholeQuran}
+            </button>
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                className={state.ranges === preset.value ? 'chip active' : 'chip'}
+                onClick={() => applyRanges(preset.value)}
+              >
+                {t.presets[preset.key]}
+              </button>
             ))}
-          </select>
-        </div>
-        <ByPicker value={state.topBy} onChange={(topBy) => update({ topBy })} />
-        {top.error && !rangeError && <p className="error">{top.error}</p>}
-        {!top.data && top.loading && <SkeletonBars rows={8} />}
-        {top.data && !top.error && (
-          <div className={top.loading ? 'loading' : undefined}>
-            <Bars items={top.data} onSelect={countValue} />
           </div>
-        )}
-      </section>
 
-      {/* Both sources require being named, with a link, wherever their data is used */}
-      <footer>
-        <p>
-          Quran text from the{' '}
-          <a href="https://tanzil.net" target="_blank" rel="noreferrer">
-            Tanzil Project
-          </a>{' '}
-          (
-          <a
-            href="https://creativecommons.org/licenses/by/3.0/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            CC BY 3.0
-          </a>
-          ). Morphology, roots and lemmas from the{' '}
-          <a href="https://corpus.quran.com" target="_blank" rel="noreferrer">
-            Quranic Arabic Corpus
-          </a>{' '}
-          (
-          <a href="https://corpus.quran.com/license.jsp" target="_blank" rel="noreferrer">
-            GNU GPL
-          </a>
-          ), via{' '}
-          <a href="https://github.com/mustafa0x/quran-morphology" target="_blank" rel="noreferrer">
-            mustafa0x/quran-morphology
-          </a>
-          .
-        </p>
-      </footer>
-    </main>
+          {surahs.data && (
+            <RangeBuilder value={state.ranges} surahs={surahs.data} onChange={applyRanges} />
+          )}
+
+          <form className="range-form" onSubmit={submitRanges}>
+            <label htmlFor="range">{t.orType}</label>
+            <div className="row compact">
+              <input
+                id="range"
+                value={rangeInput}
+                onChange={(e) => setRangeInput(e.target.value)}
+                placeholder={t.rangePlaceholder}
+                dir="ltr"
+                autoComplete="off"
+              />
+              <button type="submit">{t.apply}</button>
+            </div>
+            <p className="hint">
+              {t.rangeHint({
+                surah: code('2'),
+                surahs: code('2-4'),
+                aya: code('2:255'),
+                ayas: code('2:1-20'),
+                across: code('2:1-3:10'),
+              })}
+            </p>
+          </form>
+
+          {rangeError ? (
+            <p className="error">{rangeError}</p>
+          ) : (
+            <dl className={summary.loading ? 'tiles loading' : 'tiles'}>
+              <Tile label={t.ayas} value={summary.data?.ayas} loading={summary.loading} />
+              <Tile
+                label={t.words}
+                value={summary.data?.words}
+                loading={summary.loading}
+                note={t.wordsNote}
+              />
+              <Tile label={t.roots} value={summary.data?.roots} loading={summary.loading} />
+              <Tile label={t.lemmas} value={summary.data?.lemmas} loading={summary.loading} />
+            </dl>
+          )}
+        </section>
+
+        <section className="card" id="count">
+          <div className="card-heading">
+            <h2>
+              {t.count} <Spinner active={count.loading} />
+            </h2>
+          </div>
+          <form className="count-form" onSubmit={submitCount}>
+            <ByPicker value={state.countBy} onChange={(countBy) => update({ countBy })} />
+            <div className="row">
+              <input
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+                placeholder="مريم"
+                dir="rtl"
+                lang="ar"
+                className="arabic"
+                autoComplete="off"
+                aria-label={t.countInput}
+              />
+              <button type="submit">{t.countButton}</button>
+            </div>
+            <p className="hint">{t.by[state.countBy].hint}</p>
+          </form>
+          {qProblem && !rangeError && <p className="error">{t.singleWord}</p>}
+          {count.error && !rangeError && <p className="error">{t.requestFailed}</p>}
+          {!count.data && count.loading && <SkeletonBars rows={3} />}
+          {count.data && !count.error && !qProblem && (
+            <div className={count.loading ? 'loading' : undefined}>
+              <p className="total">
+                <Ar>{count.data.query}</Ar> <strong>{plural(t.occurs, count.data.count)}</strong>
+              </p>
+              {count.data.breakdown.length > 1 && <Bars items={count.data.breakdown} />}
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="card-heading">
+            <h2>
+              {t.mostFrequent} <Spinner active={top.loading} />
+            </h2>
+            <select
+              value={state.limit}
+              onChange={(e) => update({ limit: Number(e.target.value) })}
+              aria-label={t.numberOfResults}
+            >
+              {TOP_LIMITS.map((limit) => (
+                <option key={limit} value={limit}>
+                  {t.top(number(limit))}
+                </option>
+              ))}
+            </select>
+          </div>
+          <ByPicker value={state.topBy} onChange={(topBy) => update({ topBy })} />
+          {top.error && !rangeError && <p className="error">{t.requestFailed}</p>}
+          {!top.data && top.loading && <SkeletonBars rows={8} />}
+          {top.data && !top.error && (
+            <div className={top.loading ? 'loading' : undefined}>
+              <Bars items={top.data} onSelect={countValue} />
+            </div>
+          )}
+        </section>
+
+        {/* Both sources require being named, with a link, wherever their data is used */}
+        <footer>
+          <p>
+            {t.footer({
+              tanzil: link('https://tanzil.net', 'Tanzil Project'),
+              cc: link('https://creativecommons.org/licenses/by/3.0/', 'CC BY 3.0'),
+              corpus: link('https://corpus.quran.com', 'Quranic Arabic Corpus'),
+              gpl: link('https://corpus.quran.com/license.jsp', 'GNU GPL'),
+              fork: link('https://github.com/mustafa0x/quran-morphology', 'mustafa0x/quran-morphology'),
+            })}
+          </p>
+        </footer>
+      </main>
+    </I18nContext>
   )
 }
 
@@ -362,8 +381,9 @@ function Tile({
   note?: ReactNode
   loading: boolean
 }) {
+  const { number } = useI18n()
   let shown: ReactNode = '—'
-  if (value !== undefined) shown = value.toLocaleString()
+  if (value !== undefined) shown = number(value)
   else if (loading) shown = <span className="skeleton skeleton-number" />
   return (
     <div className="tile">
@@ -375,18 +395,19 @@ function Tile({
 }
 
 function ByPicker({ value, onChange }: { value: CountBy; onChange: (by: CountBy) => void }) {
+  const { t } = useI18n()
   return (
-    <div className="segmented" role="radiogroup" aria-label="Match by">
-      {BY_OPTIONS.map((option) => (
+    <div className="segmented" role="radiogroup">
+      {BY_VALUES.map((by) => (
         <button
-          key={option.value}
+          key={by}
           type="button"
           role="radio"
-          aria-checked={value === option.value}
-          className={value === option.value ? 'active' : undefined}
-          onClick={() => onChange(option.value)}
+          aria-checked={value === by}
+          className={value === by ? 'active' : undefined}
+          onClick={() => onChange(by)}
         >
-          {option.label}
+          {t.by[by].label}
         </button>
       ))}
     </div>
@@ -394,7 +415,8 @@ function ByPicker({ value, onChange }: { value: CountBy; onChange: (by: CountBy)
 }
 
 function Bars({ items, onSelect }: { items: Frequency[]; onSelect?: (value: string) => void }) {
-  if (items.length === 0) return <p className="hint">No results in these ayas.</p>
+  const { t, number } = useI18n()
+  if (items.length === 0) return <p className="hint">{t.noResults}</p>
   const max = Math.max(...items.map((item) => item.count))
   return (
     <ol className="bars">
@@ -404,21 +426,20 @@ function Bars({ items, onSelect }: { items: Frequency[]; onSelect?: (value: stri
             <button
               type="button"
               className="bar-label arabic"
-              lang="ar"
               onClick={() => onSelect(item.value)}
-              title="Count this"
+              title={t.countThis}
             >
-              {item.value}
+              <bdi lang="ar">{item.value}</bdi>
             </button>
           ) : (
-            <span className="bar-label arabic" lang="ar">
-              {item.value}
+            <span className="bar-label arabic">
+              <bdi lang="ar">{item.value}</bdi>
             </span>
           )}
           <span className="bar-track">
             <span className="bar" style={{ width: `${(item.count / max) * 100}%` }} />
           </span>
-          <span className="bar-count">{item.count.toLocaleString()}</span>
+          <span className="bar-count">{number(item.count)}</span>
         </li>
       ))}
     </ol>

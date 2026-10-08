@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap');
 
 :root {
   --bg: #f7f5f0;
@@ -38,6 +38,29 @@ body {
   background: var(--bg);
   color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Arabic interface text; Quranic words keep Amiri (.arabic) */
+body:lang(ar) {
+  font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.language {
+  flex: none;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+
+.language:lang(ar) {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
 }
 
 main {
@@ -236,9 +259,9 @@ code {
   gap: 10px;
 }
 
+/* Labels sit against their bar: right in English, left in Arabic */
 .bar-label {
-  text-align: right;
-  direction: rtl;
+  text-align: end;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -273,7 +296,7 @@ button.bar-label:hover {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   min-width: 3.5em;
-  text-align: right;
+  text-align: end;
 }
 
 footer {
@@ -287,6 +310,101 @@ footer a {
   color: var(--accent);
 }
 
+.builder {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.builder-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.builder-row select {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.aya-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aya-range input {
+  flex: none;
+  width: 4.5em;
+  padding: 8px;
+  text-align: center;
+}
+
+/* "of 286" and "of 7" take the same width, so rows line up */
+.aya-range .of {
+  min-width: 4.2em;
+}
+
+.aya-range input:disabled {
+  opacity: 0.5;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 6px 8px;
+}
+
+.remove:hover {
+  color: var(--error);
+}
+
+.add,
+.link {
+  justify-self: start;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.link {
+  padding: 0;
+  font-weight: inherit;
+  text-decoration: underline;
+}
+
+.range-form {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.range-form label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* The typed-ranges input is secondary to the builder: smaller */
+.row.compact input,
+.row.compact button {
+  padding: 5px 10px;
+  font-size: 0.875rem;
+}
+
 .error {
   color: var(--error);
   margin: 12px 0 0;
@@ -295,17 +413,6 @@ footer a {
 .loading {
   opacity: 0.55;
   transition: opacity 0.15s;
-}
-
-.label-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.label-row label {
-  margin: 0;
 }
 
 h2 {
@@ -373,7 +480,7 @@ h2 {
 }
 
 @media (max-width: 480px) {
-  .row {
+  .row:not(.compact) {
     flex-direction: column;
   }
 

@@ -29,6 +29,11 @@ npm run lint
 npm run build  # writes frontend/dist; then fastapi dev serves the app at :8000 as well
 ```
 
+The interface is in Arabic (the default, right-to-left, Arabic-Indic digits) and
+English. All text lives in `frontend/src/i18n.tsx`, one dictionary per language;
+TypeScript fails the build if a language misses a key. The language is in the URL
+(`?lang=en`), and the header toggle also remembers it in the browser.
+
 Without a build, `fastapi dev` still starts (with a warning) but only the API works.
 The Docker image builds the frontend in its own stage.
 
@@ -84,6 +89,8 @@ surah) or `2:1-3:10` (across surahs). Overlapping ranges are counted once.
   vocative يا as its own word; `words_uthmani` counts Uthmani words.
 - `GET /stats/count?by=...&q=...`: occurrences of `q`, with a breakdown.
 - `GET /stats/top?by=...&limit=20`: the most frequent values.
+- `GET /surahs`: the 114 surahs with their names and aya counts, for picking
+  ranges by name.
 
 `by` sets what is matched, from strictest to loosest. Diacritics in `q` are
 ignored, except that a fully diacritized lemma matches only itself.
