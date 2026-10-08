@@ -162,7 +162,12 @@ export default function App() {
   return (
     <main>
       <header>
-        <h1>Quran Statistics</h1>
+        {/* A plain link: reloads the page with no query string, clearing every filter */}
+        <h1>
+          <a href="/" className="home">
+            Quran Statistics
+          </a>
+        </h1>
         <p className="subtitle">Count words, stems, lemmas and roots across any ayas.</p>
       </header>
 

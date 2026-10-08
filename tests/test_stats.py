@@ -47,6 +47,8 @@ def test_summary_splits_vocative():
     [
         # word excludes ومريم; stem includes it
         ("word", "مريم", 33),
+        # بِهِۦ: the small yeh isn't part of the normalized word
+        ("word", "به", 327),
         ("stem", "مريم", 34),
         ("stem", "مَرْيَمَ", 34),
         ("lemma", "قال", 1618),
