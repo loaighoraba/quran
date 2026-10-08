@@ -129,6 +129,7 @@ def build_rows(
                     "word_id": word_id,
                     "number": segment.number,
                     "form": segment.form,
+                    "form_normalized": normalize_arabic(segment.form),
                     "pos": segment.pos,
                     **parse_features(segment.features),
                 }

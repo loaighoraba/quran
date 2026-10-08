@@ -37,6 +37,8 @@ class Segment(Base):
     number: Mapped[int] = mapped_column(SmallInteger)
     # Empty for elided suffixes (e.g. the 1st-person ي)
     form: Mapped[str] = mapped_column(Text)
+    # Diacritics stripped, so a stem matches regardless of case ending (مَرْيَمَ, مَرْيَمُ)
+    form_normalized: Mapped[str] = mapped_column(Text, index=True)
     # Coarse part of speech: N(oun), V(erb), P(article)
     pos: Mapped[str] = mapped_column(String(1))
     kind: Mapped[str] = mapped_column(String(6))

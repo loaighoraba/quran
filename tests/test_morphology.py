@@ -69,6 +69,7 @@ def test_build_rows():
     assert [(w["id"], w["aya_id"], w["number"]) for w in words] == [(1, 1, 1), (2, 1, 2), (3, 8, 1)]
     assert words[0]["text_uthmani"] == "بِسْمِ"
     assert words[1]["text_normalized"] == "الله"
+    assert rows[0]["form_normalized"] == "ب"
     assert [(r["id"], r["word_id"], r["number"]) for r in rows] == [
         (1, 1, 1),
         (2, 1, 2),
