@@ -14,6 +14,24 @@ uv run pytest
 uv run python -m app.scripts.console  # IPython shell with the DB session and models loaded
 ```
 
+### Frontend
+
+`frontend/` is a React + TypeScript single-page app built with Vite. In
+production FastAPI serves its build (`frontend/dist`) at `/`, next to the API,
+so there is one origin and no CORS. Its state (ranges, query, options) lives in
+the URL query string, so every view can be shared as a link.
+
+```sh
+cd frontend
+npm install
+npm run dev    # http://localhost:5173, proxies /stats to the API on :8000 (run fastapi dev too)
+npm run lint
+npm run build  # writes frontend/dist; then fastapi dev serves the app at :8000 as well
+```
+
+Without a build, `fastapi dev` still starts (with a warning) but only the API works.
+The Docker image builds the frontend in its own stage.
+
 ## Quran data
 
 `datasources/` holds the Quran text and surah metadata from the

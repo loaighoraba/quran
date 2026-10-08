@@ -4,6 +4,8 @@ import os
 os.environ.setdefault("POSTGRES_USER", "test")
 os.environ.setdefault("POSTGRES_PASSWORD", "test")
 os.environ.setdefault("POSTGRES_DB", "test")
+# Let the app start without a frontend build (frontend/dist); test_main checks it when present
+os.environ.setdefault("FASTAPI_ENV", "development")
 
 import pytest  # noqa: E402
 

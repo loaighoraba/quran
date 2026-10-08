@@ -1,0 +1,288 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --text: #1f2421;
+  --muted: #69716b;
+  --border: #e3dfd5;
+  --accent: #1f6f5c;
+  --accent-soft: #e2efe9;
+  --bar: #9cc7b8;
+  --error: #b42318;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141816;
+    --surface: #1c211f;
+    --text: #e8ebe9;
+    --muted: #9aa39e;
+    --border: #2d3431;
+    --accent: #5fbf9f;
+    --accent-soft: #1f3a31;
+    --bar: #3b7d68;
+    --error: #f97066;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+  display: grid;
+  /* minmax(0, ...): let cards shrink below their content's widest line on phones */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+}
+
+.subtitle,
+.hint {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.hint {
+  font-size: 0.875rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.arabic {
+  font-family: Amiri, 'Noto Naskh Arabic', serif;
+  font-size: 1.25em;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 14px;
+}
+
+button[type='submit'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+code {
+  font-size: 0.85em;
+  background: var(--accent-soft);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+
+.chip.active,
+.segmented .active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.tile {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.tile dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tile dd {
+  margin: 2px 0 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile .note {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.total {
+  font-size: 1.1rem;
+  margin: 16px 0 8px;
+}
+
+.bars {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(80px, 160px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar-label {
+  text-align: right;
+  direction: rtl;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.bar-label {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+}
+
+button.bar-label:hover {
+  text-decoration: underline;
+}
+
+.bar-track {
+  height: 10px;
+  background: var(--bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  background: var(--bar);
+  border-radius: 999px;
+}
+
+.bar-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 3.5em;
+  text-align: right;
+}
+
+.error {
+  color: var(--error);
+  margin: 12px 0 0;
+}
+
+.loading {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+@media (max-width: 480px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .bars li {
+    grid-template-columns: minmax(60px, 110px) 1fr auto;
+  }
+}

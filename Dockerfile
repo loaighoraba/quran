@@ -1,3 +1,15 @@
+# Frontend stage: build the React app into /frontend/dist
+FROM node:24-slim AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+
 # Build stage: install locked dependencies into /app/.venv with uv
 FROM python:3.14-slim AS builder
 
@@ -24,6 +36,7 @@ RUN useradd --create-home --uid 1000 app
 
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
+COPY --from=frontend --chown=app:app /frontend/dist /app/frontend/dist
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

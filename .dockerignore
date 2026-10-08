@@ -11,3 +11,5 @@
 *.py[oc]
 datasources
 tests
+frontend/node_modules
+frontend/dist

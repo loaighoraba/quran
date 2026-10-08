@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, Select, func, or_, select, true
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.arabic import normalize_arabic
 from app.db import SessionDep
@@ -86,12 +87,14 @@ def canonical(text: str) -> str:
     return unicodedata.normalize("NFD", text)
 
 
-def matching_values(session: SessionDep, column: ColumnElement[str], value: str) -> list[str]:
+def matching_values(
+    session: SessionDep, column: InstrumentedAttribute[str | None], value: str
+) -> list[str]:
     """Lemmas or roots equal to value; failing that, those equal once diacritics are stripped.
 
     So عِلْم matches only عِلْم, while علم matches عِلْم, عَلِمَ and عَلَّمَ, and اله matches أله.
     """
-    values = session.scalars(select(column).distinct().where(column.is_not(None))).all()
+    values = [v for v in session.scalars(select(column).distinct()) if v is not None]
     exact = [v for v in values if canonical(v) == canonical(value)]
     return exact or [v for v in values if normalize_arabic(v) == normalize_arabic(value)]
 
@@ -166,8 +169,11 @@ def count(
                 .group_by(Segment.lemma)
             )
     rows = session.execute(statement.where(in_range)).all()
+    # Every matched value is non-null (stems with a root always have a lemma); the check narrows
+    # the lemma column's str | None type
     breakdown = sorted(
-        (Frequency(value=v, count=c) for v, c in rows), key=lambda f: (-f.count, f.value)
+        (Frequency(value=v, count=c) for v, c in rows if v is not None),
+        key=lambda f: (-f.count, f.value),
     )
     return Count(by=by, query=q, count=sum(f.count for f in breakdown), breakdown=breakdown)
 

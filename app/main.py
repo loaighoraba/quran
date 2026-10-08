@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -15,11 +16,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Quran API", lifespan=lifespan)
 app.include_router(stats.router)
-
-
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"message": "Welcome to the Quran statistics API! Work is under progress"}
+# The React single-page app, built by `npm run build` in frontend/. API routes take priority;
+# other paths fall back to index.html for client-side routing.
+app.frontend("/", directory=Path(__file__).resolve().parents[1] / "frontend" / "dist")
 
 
 @app.get("/health")
