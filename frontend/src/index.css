@@ -297,6 +297,81 @@ footer a {
   transition: opacity 0.15s;
 }
 
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.label-row label {
+  margin: 0;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-number {
+  height: 1.4rem;
+  width: 70%;
+  margin-top: 4px;
+  border-radius: 6px;
+}
+
+/* Placeholder rows as tall as real ones (Arabic labels), so results don't shift the layout */
+.bars[aria-hidden='true'] li {
+  height: 30px;
+}
+
+.skeleton-label {
+  width: 60%;
+  justify-self: end;
+}
+
+.skeleton-count {
+  width: 3em;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .skeleton {
+    animation-duration: 2.5s;
+  }
+}
+
 @media (max-width: 480px) {
   .row {
     flex-direction: column;

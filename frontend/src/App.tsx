@@ -115,6 +115,25 @@ function useRequest<T>(key: string | null, request: (signal: AbortSignal) => Pro
   }
 }
 
+// True once `active` has stayed true for `delay` ms, so fast requests don't flash a spinner
+function useDelayed(active: boolean, delay = 200) {
+  const [elapsed, setElapsed] = useState(false)
+  useEffect(() => {
+    if (!active) return
+    const timer = setTimeout(() => setElapsed(true), delay)
+    return () => {
+      clearTimeout(timer)
+      setElapsed(false)
+    }
+  }, [active, delay])
+  return active && elapsed
+}
+
+function Spinner({ active }: { active: boolean }) {
+  const shown = useDelayed(active)
+  return shown ? <span className="spinner" role="status" aria-label="Loading" /> : null
+}
+
 export default function App() {
   const [state, setState] = useState(readUrl)
   const [rangeInput, setRangeInput] = useState(state.ranges)
@@ -173,7 +192,10 @@ export default function App() {
 
       <section className="card">
         <form className="range-form" onSubmit={submitRanges}>
-          <label htmlFor="range">Ayas</label>
+          <div className="label-row">
+            <label htmlFor="range">Ayas</label>
+            <Spinner active={summary.loading} />
+          </div>
           <div className="row">
             <input
               id="range"
@@ -214,17 +236,30 @@ export default function App() {
           <p className="error">{rangeError}</p>
         ) : (
           <dl className={summary.loading ? 'tiles loading' : 'tiles'}>
-            <Tile label="Ayas" value={summary.data?.ayas} />
-            <Tile label="Words" value={summary.data?.words} note={<>with <Ar>يا</Ar> split off</>} />
-            <Tile label="Uthmani words" value={summary.data?.words_uthmani} />
-            <Tile label="Roots" value={summary.data?.roots} />
-            <Tile label="Lemmas" value={summary.data?.lemmas} />
+            <Tile label="Ayas" value={summary.data?.ayas} loading={summary.loading} />
+            <Tile
+              label="Words"
+              value={summary.data?.words}
+              loading={summary.loading}
+              note={
+                <>
+                  with <Ar>يا</Ar> split off
+                </>
+              }
+            />
+            <Tile label="Uthmani words" value={summary.data?.words_uthmani} loading={summary.loading} />
+            <Tile label="Roots" value={summary.data?.roots} loading={summary.loading} />
+            <Tile label="Lemmas" value={summary.data?.lemmas} loading={summary.loading} />
           </dl>
         )}
       </section>
 
       <section className="card" id="count">
-        <h2>Count</h2>
+        <div className="card-heading">
+          <h2>
+            Count <Spinner active={count.loading} />
+          </h2>
+        </div>
         <form className="count-form" onSubmit={submitCount}>
           <ByPicker value={state.countBy} onChange={(countBy) => update({ countBy })} />
           <div className="row">
@@ -243,6 +278,7 @@ export default function App() {
           <p className="hint">{BY_OPTIONS.find((o) => o.value === state.countBy)?.hint}</p>
         </form>
         {count.error && !rangeError && <p className="error">{count.error}</p>}
+        {!count.data && count.loading && <SkeletonBars rows={3} />}
         {count.data && !count.error && (
           <div className={count.loading ? 'loading' : undefined}>
             <p className="total">
@@ -257,7 +293,9 @@ export default function App() {
 
       <section className="card">
         <div className="card-heading">
-          <h2>Most frequent</h2>
+          <h2>
+            Most frequent <Spinner active={top.loading} />
+          </h2>
           <select
             value={state.limit}
             onChange={(e) => update({ limit: Number(e.target.value) })}
@@ -272,6 +310,7 @@ export default function App() {
         </div>
         <ByPicker value={state.topBy} onChange={(topBy) => update({ topBy })} />
         {top.error && !rangeError && <p className="error">{top.error}</p>}
+        {!top.data && top.loading && <SkeletonBars rows={8} />}
         {top.data && !top.error && (
           <div className={top.loading ? 'loading' : undefined}>
             <Bars items={top.data} onSelect={countValue} />
@@ -313,11 +352,24 @@ export default function App() {
   )
 }
 
-function Tile({ label, value, note }: { label: string; value?: number; note?: ReactNode }) {
+function Tile({
+  label,
+  value,
+  note,
+  loading,
+}: {
+  label: string
+  value?: number
+  note?: ReactNode
+  loading: boolean
+}) {
+  let shown: ReactNode = '—'
+  if (value !== undefined) shown = value.toLocaleString()
+  else if (loading) shown = <span className="skeleton skeleton-number" />
   return (
     <div className="tile">
       <dt>{label}</dt>
-      <dd>{value === undefined ? '—' : value.toLocaleString()}</dd>
+      <dd>{shown}</dd>
       {note && <span className="note">{note}</span>}
     </div>
   )
@@ -368,6 +420,21 @@ function Bars({ items, onSelect }: { items: Frequency[]; onSelect?: (value: stri
             <span className="bar" style={{ width: `${(item.count / max) * 100}%` }} />
           </span>
           <span className="bar-count">{item.count.toLocaleString()}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+// Placeholder rows shown before the first results arrive
+function SkeletonBars({ rows }: { rows: number }) {
+  return (
+    <ol className="bars" aria-hidden="true">
+      {Array.from({ length: rows }, (_, index) => (
+        <li key={index}>
+          <span className="skeleton skeleton-label" />
+          <span className="skeleton skeleton-bar" style={{ width: `${90 - index * 9}%` }} />
+          <span className="skeleton skeleton-count" />
         </li>
       ))}
     </ol>
