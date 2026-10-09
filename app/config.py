@@ -9,8 +9,8 @@ from sqlalchemy import URL
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    postgres_host: str
+    postgres_port: int
     postgres_user: str
     postgres_password: SecretStr
     postgres_db: str
@@ -37,4 +37,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

@@ -10,14 +10,17 @@ from IPython import start_ipython
 from sqlalchemy import delete, func, insert, select, text, update
 from traitlets.config import Config
 
-from app.db import SessionLocal, engine
+from app.config import get_settings
+from app.db import build_engine, build_session_factory
 from app.models import Aya, Segment, Surah, Word
 
 
 def main() -> None:
+    engine = build_engine(get_settings())
+    session_factory = build_session_factory(engine)
     namespace = {
         "engine": engine,
-        "s": SessionLocal(),
+        "s": session_factory(),
         "select": select,
         "insert": insert,
         "update": update,

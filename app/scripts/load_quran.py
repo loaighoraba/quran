@@ -16,7 +16,8 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.arabic import normalize_arabic
-from app.db import Base, SessionLocal
+from app.config import get_settings
+from app.db import Base, build_engine, build_session_factory
 from app.models import Aya, Segment, Surah, Word
 from app.scripts.morphology import build_rows, parse_morphology
 
@@ -135,7 +136,8 @@ def main() -> None:
     aya_ids = {(row["surah_id"], row["number"]): row["id"] for row in aya_rows}
     word_rows, segment_rows = build_rows(morphology, aya_ids)
 
-    with SessionLocal.begin() as session:
+    session_factory = build_session_factory(build_engine(get_settings()))
+    with session_factory.begin() as session:
         for model in (Segment, Word, Aya, Surah):
             session.execute(delete(model))
         copy_rows(session, Surah, surah_rows)

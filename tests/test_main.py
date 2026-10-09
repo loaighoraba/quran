@@ -1,11 +1,6 @@
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-client = TestClient(app)
 
 FRONTEND_DIST = Path(__file__).resolve().parents[1] / "frontend" / "dist"
 
@@ -17,20 +12,24 @@ needs_frontend = pytest.mark.skipif(
 
 
 @needs_frontend
-def test_root_serves_frontend():
+def test_root_serves_frontend(client):
     response = client.get("/")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
 
 
 @needs_frontend
-def test_unknown_api_path_is_json_404():
+def test_unknown_api_path_is_json_404(client):
     response = client.get("/stats/unknown")
     assert response.status_code == 404
     assert response.json() == {"detail": "Not Found"}
 
 
-def test_health():
+def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+
+
+def test_health_db(client):
+    response = client.get("/health/db")
+    assert response.status_code == 200

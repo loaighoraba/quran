@@ -1,33 +1,38 @@
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.db import SessionDep, engine
+from app.config import Settings, get_settings
+from app.db import SessionDep, build_engine, build_session_factory
 from app.routers import stats, surahs
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
-    engine.dispose()
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    engine = build_engine(settings)
+    session_factory = build_session_factory(engine)
 
+    app = FastAPI(title="Quran API")
 
-app = FastAPI(title="Quran API", lifespan=lifespan)
-app.include_router(stats.router)
-app.include_router(surahs.router)
-# The React single-page app, built by `npm run build` in frontend/. API routes take priority;
-# other paths fall back to index.html for client-side routing.
-app.frontend("/", directory=Path(__file__).resolve().parents[1] / "frontend" / "dist")
+    app.state.engine = engine
+    app.state.session_factory = session_factory
 
+    app.include_router(stats.router)
+    app.include_router(surahs.router)
+    app.frontend(
+        "/",
+        directory=Path(__file__).resolve().parents[1] / "frontend" / "dist",
+        check_dir=False,
+    )
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
 
+    @app.get("/health/db")
+    def health_db(session: SessionDep):
+        session.execute(text("SELECT 1"))
+        return {"status": "ok"}
 
-@app.get("/health/db")
-def health_db(session: SessionDep) -> dict[str, str]:
-    session.execute(text("SELECT 1"))
-    return {"status": "ok"}
+    return app

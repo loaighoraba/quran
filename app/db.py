@@ -1,17 +1,12 @@
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy import MetaData, create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import get_settings
-
-settings = get_settings()
-
-engine = create_engine(settings.database_url, echo=settings.db_echo, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-
+from app.config import Settings
 
 # Deterministic constraint names, so Alembic can alter/drop them in later migrations
 NAMING_CONVENTION = {
@@ -27,8 +22,16 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-def get_session() -> Iterator[Session]:
-    with SessionLocal() as session:
+def build_engine(settings: Settings) -> Engine:
+    return create_engine(settings.database_url, echo=settings.db_echo, pool_pre_ping=True)
+
+
+def build_session_factory(engine: Engine) -> sessionmaker[Session]:
+    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+def get_session(request: Request) -> Iterator[Session]:
+    with request.app.state.session_factory() as session:
         yield session
 
 
