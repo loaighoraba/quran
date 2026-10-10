@@ -1,8 +1,23 @@
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 FRONTEND_DIST = Path(__file__).resolve().parents[1] / "frontend" / "dist"
+
+
+def test_entrypoint_app_is_usable():
+    """app.main:app is what `fastapi run`/the Docker image's CMD resolve at startup.
+
+    The other tests here build their own app via create_app(settings) and never
+    touch this module-level instance, so they wouldn't catch it going missing.
+    """
+    from app.main import app
+
+    assert isinstance(app, FastAPI)
+    response = TestClient(app).get("/health")
+    assert response.status_code == 200
 
 
 # Unmatched paths go to the frontend routes, which need the build
