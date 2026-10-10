@@ -27,7 +27,7 @@ def db_session(app):
     conn = app.state.engine.connect()
     trans = conn.begin()
     session = app.state.session_factory(bind=conn, join_transaction_mode="create_savepoint")
-    yield conn
+    yield session
     session.close()
     trans.rollback()
     conn.close()
