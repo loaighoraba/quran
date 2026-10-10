@@ -125,7 +125,7 @@ uv run --env-file .env.test alembic upgrade head
 Then run every test with:
 
 ```sh
-uv run --env-file .env.test pytest
+QURAN_TEST_DB=1 uv run pytest
 ```
 
 Run `uv run --env-file .env.test alembic upgrade head` again after adding a migration.

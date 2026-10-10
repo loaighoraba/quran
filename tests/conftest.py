@@ -41,17 +41,17 @@ def client(app, db_session):
 
 
 @pytest.fixture(scope="session")
-def quran_db() -> None:
+def quran_db(settings) -> None:
     """Load the full Quran into the test database; it must already be migrated.
 
     Opt-in with QURAN_TEST_DB=1, since loading replaces all data in the database.
     """
     if os.environ.get("QURAN_TEST_DB") != "1":
         pytest.skip("run with: uv run --env-file .env.test pytest (see README, Tests)")
-    from app.config import get_settings
     from app.scripts import load_quran
 
-    host = get_settings().postgres_host
-    if host not in LOCAL_HOSTS:
-        pytest.fail(f"Refusing to load test data into {host}; use a local database")
-    load_quran.main()
+    if settings.postgres_host not in LOCAL_HOSTS:
+        pytest.fail(
+            f"Refusing to load test data into {settings.postgres_host}; use a local database"
+        )
+    load_quran.main(settings)
