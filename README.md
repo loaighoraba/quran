@@ -1,5 +1,8 @@
 # quran
 
+[![CI](https://github.com/loaighoraba/quran/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/loaighoraba/quran/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/loaighoraba/quran/graph/badge.svg)](https://codecov.io/gh/loaighoraba/quran)
+
 A web application that allows doing statistics on Quran.
 
 ## Development

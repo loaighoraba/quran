@@ -16,4 +16,5 @@ wheels/
 
 # others
 .coverage
+coverage.xml
 .pytest_cache/
