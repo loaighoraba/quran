@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.db import SessionDep
+from app.db import get_session
 from app.main import create_app
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -35,7 +35,7 @@ def db_session(app):
 
 @pytest.fixture
 def client(app, db_session):
-    app.dependency_overrides[SessionDep] = lambda: db_session
+    app.dependency_overrides[get_session] = lambda: db_session
     yield TestClient(app)
     app.dependency_overrides.clear()
 
