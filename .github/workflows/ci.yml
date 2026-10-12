@@ -98,7 +98,10 @@ jobs:
 
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    # A real domain contains a dot; this also skips an unset variable and "N/A"
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && contains(vars.APP_DOMAIN, '.')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
