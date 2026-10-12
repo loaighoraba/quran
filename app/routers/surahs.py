@@ -1,22 +1,11 @@
-from typing import Literal
-
 from fastapi import APIRouter
-from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.db import SessionDep
 from app.models import Surah
+from app.routers.schemas import SurahOut
 
 router = APIRouter(prefix="/surahs", tags=["surahs"])
-
-
-class SurahOut(BaseModel):
-    id: int
-    name_arabic: str
-    name_transliterated: str
-    name_english: str
-    revelation_type: Literal["meccan", "medinan"]
-    aya_count: int
 
 
 @router.get("")

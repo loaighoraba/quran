@@ -152,7 +152,7 @@ run** `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`.
 ## Deployment
 
 The API runs on DigitalOcean App Platform (app `quran`, region `fra`) as a
-Docker container, served at https://quran.loaighoraba.dev (CNAME on Cloudflare, DNS only). The database is Supabase.
+Docker container. The database is Supabase.
 
 On every push to `main`, after the `test` job passes, the `deploy` job in
 `.github/workflows/ci.yml` applies [.do/app.yaml](.do/app.yaml). App Platform
@@ -180,7 +180,7 @@ Required GitHub settings (Settings → Secrets and variables → Actions):
 | `POSTGRES_HOST` | secret | Supabase session pooler host |
 | `POSTGRES_USER` | secret | `postgres.<project-ref>` |
 | `POSTGRES_PASSWORD` | secret | Supabase database password |
-| `APP_DOMAIN` | variable | Custom domain the app is served at, e.g. `quran.loaighoraba.dev` |
+| `APP_DOMAIN` | variable | Custom domain the app is served at, e.g. `sample-quran-statistics-wepapp-url` |
 | `DO_PROJECT_ID` | variable | DigitalOcean project to create the app in (used on first deploy only) |
 
 Build and run the image locally:

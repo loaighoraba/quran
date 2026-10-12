@@ -20,11 +20,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(stats.router)
     app.include_router(surahs.router)
-    app.frontend(
-        "/",
-        directory=Path(__file__).resolve().parents[1] / "frontend" / "dist",
-        check_dir=False,
-    )
+    # Only serve the built frontend when it exists; in development Vite serves it
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        app.frontend("/", directory=frontend_dist)
 
     @app.get("/health")
     def health():
