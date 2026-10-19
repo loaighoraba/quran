@@ -80,7 +80,9 @@ Morphology is in Uthmani script and goes into two tables:
 The simple script writes the vocative يا as its own word (`يَا مَرْيَمُ`), where
 the Uthmani script attaches it (`يَٰمَرْيَمُ`). `words.split_normalized` holds
 the word split that way (`{يا,مريم}`; one element for every other word), and
-word counts use it: 77,790 words. The vocative م of `اللهمّ` is a suffix and isn't
+word counts and word search use it: 77,790 words. It is built from `text_simple`, so
+it has the alef the Uthmani script drops (`ثلاث`, not `ثلث`), and from the Uthmani
+spelling for the few words without one. The vocative م of `اللهمّ` is a suffix and isn't
 split. For phrase search in simple script, use `ayas.text_simple`.
 
 ```sql

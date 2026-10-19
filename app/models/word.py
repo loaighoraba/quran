@@ -31,8 +31,10 @@ class Word(Base):
     text_simple: Mapped[str | None] = mapped_column(Text)
     # Diacritics stripped, for loose search
     text_normalized: Mapped[str] = mapped_column(Text, index=True)
-    # text_normalized split as in the simple script, where the vocative يا is its own word
-    # (يمريم -> {يا,مريم}); one element for every other word. Word counts use these.
+    # The word as the simple script writes it, normalized and split: the vocative يا is its own
+    # word (يمريم -> {يا,مريم}), and long ā is spelled out (ثلاث, where text_normalized has ثلث).
+    # One element for every other word. From text_simple; the Uthmani spelling, split the same
+    # way, where that is null. Word counts and word search use these.
     split_normalized: Mapped[list[str]] = mapped_column(ARRAY(Text))
 
     aya: Mapped[Aya] = relationship(back_populates="words")

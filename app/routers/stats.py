@@ -88,8 +88,8 @@ def matches_form(
 ) -> ColumnElement[bool]:
     """column == value, or failing any exact match, equal to value with some alefs dropped.
 
-    The Uthmani script writes many long ā as a dagger alif, which normalizing strips (ثلاث is
-    stored as ثلث), while people type the alif. Exact matches win, so قال doesn't match قل.
+    The Uthmani script writes many long ā as a dagger alif, which normalizing strips (the stem of
+    ثلاث is stored as ثلث), while people type the alif. Exact matches win, so قال doesn't match قل.
     """
     if exact_exists:
         return column == value
@@ -148,8 +148,7 @@ def occurrences(
     match by:
         case CountBy.word:
             statement, part = split_words()
-            exact = session.scalar(select(exists().where(Word.split_normalized.contains([value]))))
-            statement = statement.where(matches_form(part, value, exact_exists=bool(exact)))
+            statement = statement.where(part == value)
             # The simple script's spelling, with the alef; Uthmani where the scripts don't pair up
             label = func.coalesce(Word.text_simple, Word.text_uthmani)
         case CountBy.stem:

@@ -184,4 +184,7 @@ def build_rows(
             counts = [len(row["split_normalized"]) for row in rows]
             for row, spelling in zip(rows, pair_simple_words(aya_simple[key], counts), strict=True):
                 row["text_simple"] = spelling
+                if spelling is not None:
+                    # The simple spelling keeps the alef the Uthmani dagger alif drops
+                    row["split_normalized"] = [normalize_arabic(w) for w in spelling.split(" ")]
     return word_rows, segment_rows
