@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import ColumnElement, Select, func, or_, select, true
+from sqlalchemy import ColumnElement, Select, exists, func, or_, select, true
 from sqlalchemy.orm import InstrumentedAttribute, selectinload
 
 from app.arabic import normalize_arabic
@@ -73,6 +73,29 @@ def matching_values(
     return exact or [v for v in values if normalize_arabic(v) == normalize_arabic(value)]
 
 
+def alef_variants(value: str) -> list[str]:
+    """value with any of its alefs dropped: ثلاث -> ثلاث, ثلث."""
+    positions = [i for i, c in enumerate(value) if c == "ا"][:6]
+    variants = []
+    for mask in range(2 ** len(positions)):
+        dropped = {p for bit, p in enumerate(positions) if mask >> bit & 1}
+        variants.append("".join(c for i, c in enumerate(value) if i not in dropped))
+    return variants
+
+
+def matches_form(
+    column: ColumnElement[str], value: str, *, exact_exists: bool
+) -> ColumnElement[bool]:
+    """column == value, or failing any exact match, equal to value with some alefs dropped.
+
+    The Uthmani script writes many long ā as a dagger alif, which normalizing strips (ثلاث is
+    stored as ثلث), while people type the alif. Exact matches win, so قال doesn't match قل.
+    """
+    if exact_exists:
+        return column == value
+    return column.in_(alef_variants(value))
+
+
 def stems() -> Select:
     return select().select_from(Segment).join(Word).where(Segment.kind == "stem")
 
@@ -125,10 +148,17 @@ def occurrences(
     match by:
         case CountBy.word:
             statement, part = split_words()
-            statement = statement.where(part == value)
-            label = Word.text_uthmani
+            exact = session.scalar(select(exists().where(Word.split_normalized.contains([value]))))
+            statement = statement.where(matches_form(part, value, exact_exists=bool(exact)))
+            # The simple script's spelling, with the alef; Uthmani where the scripts don't pair up
+            label = func.coalesce(Word.text_simple, Word.text_uthmani)
         case CountBy.stem:
-            statement = stems().where(Segment.form_normalized == value)
+            exact = session.scalar(
+                select(exists().where(Segment.kind == "stem", Segment.form_normalized == value))
+            )
+            statement = stems().where(
+                matches_form(Segment.form_normalized, value, exact_exists=bool(exact))
+            )
             label = Segment.form
         case CountBy.lemma:
             # Every segment, so particles written as prefixes (و, ب) count too

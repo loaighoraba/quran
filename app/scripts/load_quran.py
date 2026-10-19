@@ -82,6 +82,10 @@ def build_aya_rows(simple: dict[AyaKey, str], uthmani: dict[AyaKey, str]) -> lis
     return rows
 
 
+def simple_texts(aya_rows: list[dict[str, Any]]) -> dict[AyaKey, str]:
+    return {(row["surah_id"], row["number"]): row["text_simple"] for row in aya_rows}
+
+
 def parse_metadata(xml: str) -> list[dict[str, Any]]:
     root = ET.fromstring(xml)
     return [
@@ -134,7 +138,7 @@ def main(settings: Settings | None = None) -> None:
     with MORPHOLOGY_PATH.open(encoding="utf-8") as f:
         morphology = parse_morphology(f)
     aya_ids = {(row["surah_id"], row["number"]): row["id"] for row in aya_rows}
-    word_rows, segment_rows = build_rows(morphology, aya_ids)
+    word_rows, segment_rows = build_rows(morphology, aya_ids, simple_texts(aya_rows))
 
     session_factory = build_session_factory(build_engine(settings or get_settings()))
     with session_factory.begin() as session:

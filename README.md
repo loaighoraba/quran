@@ -69,7 +69,9 @@ stripped from the aya text and recorded as `surahs.has_basmala` instead.
 Morphology is in Uthmani script and goes into two tables:
 
 - `words`: one row per word (77,429), with `text_uthmani` (the word's segments
-  joined), `text_normalized` (diacritics stripped, for loose search) and
+  joined), `text_simple` (the same word as the simple script spells it, with its
+  alef: `ثَلَاثَ` for `ثَلَٰثَ`; null for 164 words in the ayas where the scripts
+  split words differently), `text_normalized` (diacritics stripped, for loose search) and
   `split_normalized` (see below).
 - `segments`: one row per morpheme (130,030), with `pos`, `kind`
   (prefix/stem/suffix), `form_normalized`, `root`, `lemma`, `verb_form`, `mood`,
@@ -110,7 +112,7 @@ ignored, except that a fully diacritized lemma matches only itself.
 
 | `by` | Matches | `q=مريم` / `q=قال` | Breakdown |
 |---|---|---|---|
-| `word` | The written word, vocative split off | مريم, يا مريم; not ومريم | Uthmani spellings |
+| `word` | The written word, vocative split off | مريم, يا مريم; not ومريم | simple-script spellings (`ثَلَاثَ`) |
 | `stem` | The word without prefixes and suffixes | also ومريم | diacritized stems |
 | `lemma` | Every form of a dictionary word | قال, قالوا, يقول, قل | matching lemmas |
 | `root` | Every word from the root (`رحم` or `ر ح م`) | | the root's lemmas |

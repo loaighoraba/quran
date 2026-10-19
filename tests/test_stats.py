@@ -46,6 +46,9 @@ def test_summary_splits_vocative(client):
         # بِهِۦ: the small yeh isn't part of the normalized word
         ("word", "به", 327),
         ("stem", "مريم", 34),
+        # Typed with the long alif the Uthmani script writes as a dagger alif (stored as ثلث)
+        ("word", "ثلاث", 6),
+        ("stem", "ثلاث", 11),
         ("stem", "مَرْيَمَ", 34),
         ("lemma", "قال", 1618),
         ("root", "ر ح م", 339),
@@ -62,7 +65,7 @@ def test_count_word_breakdown_shows_written_forms(client):
     breakdown = get(client, "/stats/count", by="word", q="مريم")["breakdown"]
     assert breakdown == [
         {"value": "مَرْيَمَ", "count": 28},
-        {"value": "يَٰمَرْيَمُ", "count": 5},
+        {"value": "يَا مَرْيَمُ", "count": 5},
     ]
 
 
@@ -136,3 +139,14 @@ def test_ayas_paginate(client):
     assert first["ayas"][-1]["id"] < second["ayas"][0]["id"]
     past_end = get(client, "/stats/ayas", by="root", q="رحم", page=10_000)
     assert past_end["ayas"] == [] and past_end["total"] == first["total"]
+
+
+def test_alef_fallback_only_when_nothing_matches_exactly(client):
+    # قال has exact matches, so قل (a different stem) isn't mixed in
+    breakdown = get(client, "/stats/count", by="stem", q="قال")["breakdown"]
+    assert all("قَال" in f["value"] or "قَالَ" in f["value"] for f in breakdown)
+
+
+def test_count_word_breakdown_spells_the_alef(client):
+    breakdown = get(client, "/stats/count", by="word", q="ثلاث")["breakdown"]
+    assert [f["value"] for f in breakdown] == ["ثَلَاثَ", "ثَلَاثٍ", "ثَلَاثُ", "ثَلَاثِ"]

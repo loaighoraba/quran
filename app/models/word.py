@@ -26,6 +26,9 @@ class Word(Base):
     number: Mapped[int] = mapped_column(SmallInteger)
     # Segment forms joined, so it always matches the morphology
     text_uthmani: Mapped[str] = mapped_column(Text)
+    # The word as the simple script spells it (ثَلَاث where Uthmani has ثَلَٰث), with a vocative's
+    # يا as a separate word. None where the scripts split the aya differently.
+    text_simple: Mapped[str | None] = mapped_column(Text)
     # Diacritics stripped, for loose search
     text_normalized: Mapped[str] = mapped_column(Text, index=True)
     # text_normalized split as in the simple script, where the vocative يا is its own word

@@ -1,6 +1,12 @@
 import pytest
 
-from app.scripts.morphology import build_rows, parse_features, parse_morphology, split_vocative
+from app.scripts.morphology import (
+    build_rows,
+    pair_simple_words,
+    parse_features,
+    parse_morphology,
+    split_vocative,
+)
 
 LINES = [
     "1:1:1:1\tبِ\tP\tP|PREF|LEM:ب\n",
@@ -97,3 +103,15 @@ def test_split_vocative():
     ) == ["ويا", "ادم"]
     # The vocative م suffix of ٱللَّهُمَّ isn't written as a separate word
     assert split_vocative([segment("الله"), segment("م", "suffix", ["VOC"])]) == ["اللهم"]
+
+
+def test_pair_simple_words_gives_a_vocative_two_words():
+    assert pair_simple_words("يَا مَرْيَمُ اقْنُتِي", [2, 1]) == ["يَا مَرْيَمُ", "اقْنُتِي"]
+
+
+def test_pair_simple_words_skips_stop_signs():
+    assert pair_simple_words("ثَلَاثَ ۖ مِائَةٍ ۚ", [1, 1]) == ["ثَلَاثَ", "مِائَةٍ"]
+
+
+def test_pair_simple_words_gives_up_when_the_scripts_split_differently():
+    assert pair_simple_words("بَعْدَ مَا سَمِعَهُ", [2]) == [None]

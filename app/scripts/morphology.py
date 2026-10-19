@@ -4,6 +4,7 @@ Each line is `surah:aya:word:segment<TAB>form<TAB>pos<TAB>features`, e.g.
 `1:1:3:2	رَّحْمَٰنِ	N	ROOT:رحم|LEM:رَحْمٰن|MS|GEN|ADJ`.
 """
 
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -112,10 +113,33 @@ def split_vocative(segments: list[dict[str, Any]]) -> list[str]:
     return ["".join(segment["form_normalized"] for segment in segments)]
 
 
+def pair_simple_words(text_simple: str, split_counts: list[int]) -> list[str | None]:
+    """The simple-script spelling of each Uthmani word of an aya, or None where it can't be told.
+
+    Each word takes as many simple words as it has split parts (two for a vocative), in order.
+    Stop signs (ۖ ۚ) stand alone in the simple text, so tokens without letters are skipped. The
+    scripts split a few words differently (بَعْدَ مَا); when the counts differ the whole aya is None.
+    """
+    tokens = [t for t in text_simple.split() if any(unicodedata.category(c) == "Lo" for c in t)]
+    if len(tokens) != sum(split_counts):
+        return [None] * len(split_counts)
+    spellings: list[str | None] = []
+    start = 0
+    for count in split_counts:
+        spellings.append(" ".join(tokens[start : start + count]))
+        start += count
+    return spellings
+
+
 def build_rows(
-    segments: list[MorphSegment], aya_ids: dict[AyaKey, int]
+    segments: list[MorphSegment],
+    aya_ids: dict[AyaKey, int],
+    aya_simple: dict[AyaKey, str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Build `words` and `segments` rows, with global ids assigned in Quran order."""
+    """Build `words` and `segments` rows, with global ids assigned in Quran order.
+
+    aya_simple maps each aya to its simple-script text, for words.text_simple.
+    """
     words: dict[WordKey, list[MorphSegment]] = {}
     for segment in segments:
         words.setdefault(segment.word_key, []).append(segment)
@@ -148,7 +172,16 @@ def build_rows(
                 "text_uthmani": text,
                 "text_normalized": normalize_arabic(text),
                 "split_normalized": split_vocative(rows),
+                "text_simple": None,
             }
         )
         segment_rows.extend(rows)
+    if aya_simple:
+        by_aya: dict[AyaKey, list[dict[str, Any]]] = {}
+        for (surah, aya, _), row in zip(words, word_rows, strict=True):
+            by_aya.setdefault((surah, aya), []).append(row)
+        for key, rows in by_aya.items():
+            counts = [len(row["split_normalized"]) for row in rows]
+            for row, spelling in zip(rows, pair_simple_words(aya_simple[key], counts), strict=True):
+                row["text_simple"] = spelling
     return word_rows, segment_rows
