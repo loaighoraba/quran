@@ -24,6 +24,11 @@ production FastAPI serves its build (`frontend/dist`) at `/`, next to the API,
 so there is one origin and no CORS. Its state (ranges, query, options) lives in
 the URL query string, so every view can be shared as a link.
 
+It has two pages, chosen by path in `frontend/src/main.tsx`: `/` (statistics) and
+`/ayas` (the ayas matching a search, paginated, with each matched word
+highlighted). FastAPI answers browser navigations to unknown paths with
+`index.html`, so deep links like `/ayas?...` work in production.
+
 ```sh
 cd frontend
 npm install
@@ -91,6 +96,11 @@ surah) or `2:1-3:10` (across surahs). Overlapping ranges are counted once.
 - `GET /stats/summary`: aya, word, root and lemma counts. `words` counts the
   vocative يا as its own word; `words_uthmani` counts Uthmani words.
 - `GET /stats/count?by=...&q=...`: occurrences of `q`, with a breakdown.
+- `GET /stats/ayas?by=...&q=...&page=1&page_size=10`: the ayas containing `q`, in
+  Quran order, paginated (`page_size` up to 100). Each aya lists its words with a
+  `matched` flag; `total` is the number of matching ayas across all pages. Matching
+  is the same as `/stats/count`, and for `stem`, `lemma` and `root` the whole word
+  holding the match is flagged.
 - `GET /stats/top?by=...&limit=20`: the most frequent values.
 - `GET /surahs`: the 114 surahs with their names and aya counts, for picking
   ranges by name.
@@ -107,6 +117,7 @@ ignored, except that a fully diacritized lemma matches only itself.
 
 ```sh
 curl "localhost:8000/stats/count?by=root&q=رحم&range=1&range=2:1-20"
+curl "localhost:8000/stats/ayas?by=root&q=رحم&range=1&page_size=5"
 ```
 
 ## Tests
