@@ -156,3 +156,9 @@ def test_word_search_follows_the_simple_script(client):
     # ثَلَٰثَ (three) is ثلاث in the simple script; ثلث is a different word (a third)
     assert get(client, "/stats/count", by="word", q="ثلث")["count"] == 0
     assert get(client, "/stats/count", by="word", q="ثلاث")["count"] == 6
+
+
+def test_count_stem_breakdown_spells_the_alef(client):
+    breakdown = get(client, "/stats/count", by="stem", q="ثلث")["breakdown"]
+    assert {"value": "ثَلَاثَ", "count": 3} in breakdown
+    assert not any("\u0670" in f["value"] for f in breakdown)

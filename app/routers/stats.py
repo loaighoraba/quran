@@ -1,4 +1,6 @@
 import unicodedata
+from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -6,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import ColumnElement, Select, exists, func, or_, select, true
 from sqlalchemy.orm import InstrumentedAttribute, selectinload
 
-from app.arabic import normalize_arabic
+from app.arabic import normalize_arabic, spell_part_in_simple_script
 from app.db import SessionDep
 from app.models import Aya, Segment, Surah, Word
 from app.ranges import merge_ranges, resolve_range
@@ -125,6 +127,10 @@ def summary(session: SessionDep, in_range: AyaFilterDep) -> Summary:
     )
 
 
+def as_is(label: str, *_context: str | None) -> str:
+    return label
+
+
 @dataclass
 class Occurrences:
     """Where a word, stem, lemma or root occurs: what /count tallies and /ayas lists."""
@@ -135,6 +141,9 @@ class Occurrences:
     statement: Select
     # The matched form to group a breakdown by; None for segments without one
     label: ColumnElement[str | None]
+    # More columns the label's spelling depends on, and how it is shown given their values
+    context: tuple[ColumnElement[str | None], ...] = ()
+    spell: Callable[..., str] = as_is
 
 
 def occurrences(
@@ -145,6 +154,8 @@ def occurrences(
     ],
 ) -> Occurrences:
     value = normalize_query(by, q)
+    context: tuple[ColumnElement[str | None], ...] = ()
+    spell: Callable[..., str] = as_is
     match by:
         case CountBy.word:
             statement, part = split_words()
@@ -159,6 +170,9 @@ def occurrences(
                 matches_form(Segment.form_normalized, value, exact_exists=bool(exact))
             )
             label = Segment.form
+            # A stem is spelled like the simple script by reading its word's two spellings
+            context = (Word.text_uthmani, Word.text_simple)
+            spell = spell_part_in_simple_script
         case CountBy.lemma:
             # Every segment, so particles written as prefixes (و, ب) count too
             statement = (
@@ -173,7 +187,9 @@ def occurrences(
                 Segment.root.in_(matching_values(session, Segment.root, value))
             )
             label = Segment.lemma
-    return Occurrences(by=by, query=q, statement=statement, label=label)
+    return Occurrences(
+        by=by, query=q, statement=statement, label=label, context=context, spell=spell
+    )
 
 
 type OccurrencesDep = Annotated[Occurrences, Depends(occurrences)]
@@ -182,12 +198,19 @@ type OccurrencesDep = Annotated[Occurrences, Depends(occurrences)]
 @router.get("/count")
 def count(session: SessionDep, in_range: AyaFilterDep, found: OccurrencesDep) -> Count:
     rows = session.execute(
-        found.statement.add_columns(found.label, func.count()).where(in_range).group_by(found.label)
+        found.statement.add_columns(found.label, *found.context, func.count())
+        .where(in_range)
+        .group_by(found.label, *found.context)
     ).all()
+    # Spellings that only differ in the context columns (the same stem in two words) merge.
     # Every matched value is non-null (stems with a root always have a lemma); the check narrows
-    # the lemma column's str | None type
+    # the lemma column's str | None type.
+    counts: Counter[str] = Counter()
+    for label, *context, n in rows:
+        if label is not None:
+            counts[found.spell(label, *context)] += n
     breakdown = sorted(
-        (Frequency(value=v, count=c) for v, c in rows if v is not None),
+        (Frequency(value=v, count=c) for v, c in counts.items()),
         key=lambda f: (-f.count, f.value),
     )
     return Count(
