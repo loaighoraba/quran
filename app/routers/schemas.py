@@ -38,6 +38,29 @@ class Count(BaseModel):
     breakdown: list[Frequency]
 
 
+class MatchedWord(BaseModel):
+    text: str
+    # Part of an occurrence of the query: the word itself, or one holding the stem, lemma or root
+    matched: bool
+
+
+class AyaMatch(BaseModel):
+    id: int
+    surah: int
+    number: int
+    words: list[MatchedWord]
+
+
+class AyaMatches(BaseModel):
+    by: CountBy
+    query: str
+    # Ayas with at least one occurrence, across all pages
+    total: int
+    page: int
+    page_size: int
+    ayas: list[AyaMatch]
+
+
 class SurahOut(BaseModel):
     id: int
     name_arabic: str

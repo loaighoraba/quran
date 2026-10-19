@@ -1,18 +1,11 @@
-import { useEffect, useEffectEvent, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { getCount, getSummary, getSurahs, getTop, type CountBy, type Frequency } from './api'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { getCount, getSummary, getSurahs, getTop, type Frequency } from './api'
 import { Ar } from './Ar'
-import {
-  DEFAULT_LOCALE,
-  I18nContext,
-  LOCALES,
-  makeI18n,
-  useI18n,
-  type Locale,
-} from './i18n'
+import { DEFAULT_LOCALE, I18nContext, makeI18n, useI18n, type Locale } from './i18n'
 import { RangeBuilder } from './RangeBuilder'
 import { findRangeProblem, splitRanges } from './ranges'
-
-const BY_VALUES: CountBy[] = ['word', 'stem', 'lemma', 'root']
+import { asLocale, BY_VALUES, storedLocale, storeLocale, useRequest } from './lib'
+import { ByPicker, Header, Spinner } from './shared'
 
 const PRESETS = [
   { key: 'fatiha', value: '1' },
@@ -22,27 +15,6 @@ const PRESETS = [
 ] as const
 
 const TOP_LIMITS = [10, 20, 50, 100]
-
-const LOCALE_STORAGE_KEY = 'locale'
-
-// Storage can be unavailable (private windows, blocked site data); the language is a convenience
-function storedLocale(): string | null {
-  try {
-    return localStorage.getItem(LOCALE_STORAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
-function storeLocale(locale: Locale) {
-  try {
-    localStorage.setItem(LOCALE_STORAGE_KEY, locale)
-  } catch {
-    // Not remembered; the URL still carries it
-  }
-}
-
-const asLocale = (value: string | null) => LOCALES.find((l) => l === value)
 
 // App state lives in the URL, so every view can be bookmarked and shared
 function readUrl() {
@@ -60,6 +32,16 @@ function readUrl() {
 
 type State = ReturnType<typeof readUrl>
 
+// The filters the ayas page takes (and hands back) in its URL
+function ayasParams(state: State) {
+  const params = new URLSearchParams()
+  params.set('lang', state.locale)
+  if (state.ranges) params.set('range', state.ranges)
+  params.set('by', state.countBy)
+  params.set('q', state.q)
+  return params
+}
+
 function writeUrl(state: State) {
   const params = new URLSearchParams()
   params.set('lang', state.locale)
@@ -69,53 +51,6 @@ function writeUrl(state: State) {
   params.set('top', state.topBy)
   params.set('limit', String(state.limit))
   window.history.replaceState(null, '', `?${params}`)
-}
-
-// Runs the request whenever `key` changes (null: no request), cancelling the previous one.
-// `key` must capture every input the request uses. Data from the previous key stays visible
-// while the next one loads.
-function useRequest<T>(key: string | null, request: (signal: AbortSignal) => Promise<T>) {
-  const [result, setResult] = useState<{ key: string; data?: T; error?: string }>()
-  const run = useEffectEvent(request)
-
-  useEffect(() => {
-    if (key === null) return
-    const controller = new AbortController()
-    run(controller.signal)
-      .then((data) => setResult({ key, data }))
-      .catch((error: Error) => {
-        if (!controller.signal.aborted) setResult({ key, error: error.message })
-      })
-    return () => controller.abort()
-  }, [key])
-
-  if (key === null) return { loading: false }
-  const current = result?.key === key
-  return {
-    data: result?.data,
-    error: current ? result.error : undefined,
-    loading: !current,
-  }
-}
-
-// True once `active` has stayed true for `delay` ms, so fast requests don't flash a spinner
-function useDelayed(active: boolean, delay = 200) {
-  const [elapsed, setElapsed] = useState(false)
-  useEffect(() => {
-    if (!active) return
-    const timer = setTimeout(() => setElapsed(true), delay)
-    return () => {
-      clearTimeout(timer)
-      setElapsed(false)
-    }
-  }, [active, delay])
-  return active && elapsed
-}
-
-function Spinner({ active }: { active: boolean }) {
-  const { t } = useI18n()
-  const shown = useDelayed(active)
-  return shown ? <span className="spinner" role="status" aria-label={t.loading} /> : null
 }
 
 export default function App() {
@@ -199,25 +134,13 @@ export default function App() {
   return (
     <I18nContext value={i18n}>
       <main>
-        <header>
-          <div className="title-row">
-            {/* A plain link: reloads the page with no query string, clearing every filter */}
-            <h1>
-              <a href={`/?lang=${state.locale}`} className="home">
-                {t.title}
-              </a>
-            </h1>
-            <button
-              type="button"
-              className="language"
-              lang={state.locale === 'ar' ? 'en' : 'ar'}
-              onClick={() => setLocale(state.locale === 'ar' ? 'en' : 'ar')}
-            >
-              {t.otherLanguage}
-            </button>
-          </div>
-          <p className="subtitle">{t.subtitle}</p>
-        </header>
+        <Header
+          title={t.title}
+          subtitle={t.subtitle}
+          locale={state.locale}
+          onLocale={setLocale}
+          homeHref={`/?lang=${state.locale}`}
+        />
 
         <section className="card">
           <div className="card-heading">
@@ -322,6 +245,11 @@ export default function App() {
                 <Ar>{count.data.query}</Ar> <strong>{plural(t.occurs, count.data.count)}</strong>
               </p>
               {count.data.breakdown.length > 1 && <Bars items={count.data.breakdown} />}
+              {count.data.count > 0 && (
+                <a className="button-link" href={`/ayas?${ayasParams(state)}`}>
+                  {t.showAyas}
+                </a>
+              )}
             </div>
           )}
         </section>
@@ -390,26 +318,6 @@ function Tile({
       <dt>{label}</dt>
       <dd>{shown}</dd>
       {note && <span className="note">{note}</span>}
-    </div>
-  )
-}
-
-function ByPicker({ value, onChange }: { value: CountBy; onChange: (by: CountBy) => void }) {
-  const { t } = useI18n()
-  return (
-    <div className="segmented" role="radiogroup">
-      {BY_VALUES.map((by) => (
-        <button
-          key={by}
-          type="button"
-          role="radio"
-          aria-checked={value === by}
-          className={value === by ? 'active' : undefined}
-          onClick={() => onChange(by)}
-        >
-          {t.by[by].label}
-        </button>
-      ))}
     </div>
   )
 }

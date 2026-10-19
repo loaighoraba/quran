@@ -41,6 +41,16 @@ interface Messages {
   by: Record<CountBy, { label: string; hint: ReactNode }>
   singleWord: string
   occurs: Plural // {n} is replaced by the formatted count
+  showAyas: string
+  ayasPageSubtitle: string
+  backToStats: string
+  searchIn: (ranges: ReactNode) => ReactNode
+  matchingAyas: Plural // {n} is replaced by the formatted count
+  surahAya: (surah: string, aya: string) => string
+  previous: string
+  next: string
+  pageOf: (page: string, pages: string) => string
+  pagination: string
   mostFrequent: string
   top: (n: string) => string
   numberOfResults: string
@@ -138,6 +148,16 @@ const en: Messages = {
   },
   singleWord: 'Enter a single word, without spaces',
   occurs: { one: 'occurs once', other: 'occurs {n} times' },
+  showAyas: 'Show the ayas',
+  ayasPageSubtitle: 'Read the ayas containing a word, stem, lemma or root, with each match highlighted.',
+  backToStats: '← Back to statistics',
+  searchIn: (ranges) => <>Searching in {ranges}</>,
+  matchingAyas: { one: '1 aya contains it', other: '{n} ayas contain it' },
+  surahAya: (surah, aya) => `${surah} · aya ${aya}`,
+  previous: 'Previous',
+  next: 'Next',
+  pageOf: (page, pages) => `Page ${page} of ${pages}`,
+  pagination: 'Pages',
   mostFrequent: 'Most frequent',
   top: (n) => `Top ${n}`,
   numberOfResults: 'Number of results',
@@ -247,6 +267,23 @@ const ar: Messages = {
     many: 'ترد {n} مرة',
     other: 'ترد {n} مرة',
   },
+  showAyas: 'اعرض الآيات',
+  ayasPageSubtitle: 'اقرأ الآيات التي ترد فيها كلمة أو جذع أو مدخل معجمي أو جذر، مع إبراز كل موضع.',
+  backToStats: 'العودة إلى الإحصاءات →',
+  searchIn: (ranges) => <>البحث في {ranges}</>,
+  matchingAyas: {
+    zero: 'لا آية ترد فيها',
+    one: 'آية واحدة ترد فيها',
+    two: 'آيتان ترد فيهما',
+    few: '{n} آيات ترد فيها',
+    many: '{n} آية ترد فيها',
+    other: '{n} آية ترد فيها',
+  },
+  surahAya: (surah, aya) => `${surah} · الآية ${aya}`,
+  previous: 'السابق',
+  next: 'التالي',
+  pageOf: (page, pages) => `الصفحة ${page} من ${pages}`,
+  pagination: 'الصفحات',
   mostFrequent: 'الأكثر تكرارًا',
   top: (n) => `أعلى ${n}`,
   numberOfResults: 'عدد النتائج',

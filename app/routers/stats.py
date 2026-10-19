@@ -1,15 +1,24 @@
 import unicodedata
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import ColumnElement, Select, func, or_, select, true
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, selectinload
 
 from app.arabic import normalize_arabic
 from app.db import SessionDep
-from app.models import Segment, Surah, Word
+from app.models import Aya, Segment, Surah, Word
 from app.ranges import merge_ranges, resolve_range
-from app.routers.schemas import Count, CountBy, Frequency, Summary
+from app.routers.schemas import (
+    AyaMatch,
+    AyaMatches,
+    Count,
+    CountBy,
+    Frequency,
+    MatchedWord,
+    Summary,
+)
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -93,54 +102,121 @@ def summary(session: SessionDep, in_range: AyaFilterDep) -> Summary:
     )
 
 
-@router.get("/count")
-def count(
+@dataclass
+class Occurrences:
+    """Where a word, stem, lemma or root occurs: what /count tallies and /ayas lists."""
+
+    by: CountBy
+    query: str
+    # Words (joined to segments where needed) holding an occurrence; no columns selected yet
+    statement: Select
+    # The matched form to group a breakdown by; None for segments without one
+    label: ColumnElement[str | None]
+
+
+def occurrences(
     session: SessionDep,
-    in_range: AyaFilterDep,
     by: CountBy,
     q: Annotated[
         str, Query(min_length=1, max_length=50, description="The word, stem, lemma or root")
     ],
-) -> Count:
+) -> Occurrences:
     value = normalize_query(by, q)
     match by:
         case CountBy.word:
             statement, part = split_words()
-            statement = (
-                statement.add_columns(Word.text_uthmani, func.count())
-                .where(part == value)
-                .group_by(Word.text_uthmani)
-            )
+            statement = statement.where(part == value)
+            label = Word.text_uthmani
         case CountBy.stem:
-            statement = (
-                stems()
-                .add_columns(Segment.form, func.count())
-                .where(Segment.form_normalized == value)
-                .group_by(Segment.form)
-            )
+            statement = stems().where(Segment.form_normalized == value)
+            label = Segment.form
         case CountBy.lemma:
             # Every segment, so particles written as prefixes (و, ب) count too
             statement = (
-                select(Segment.lemma, func.count())
+                select()
+                .select_from(Segment)
                 .join(Word)
                 .where(Segment.lemma.in_(matching_values(session, Segment.lemma, value)))
-                .group_by(Segment.lemma)
             )
+            label = Segment.lemma
         case CountBy.root:
-            statement = (
-                stems()
-                .add_columns(Segment.lemma, func.count())
-                .where(Segment.root.in_(matching_values(session, Segment.root, value)))
-                .group_by(Segment.lemma)
+            statement = stems().where(
+                Segment.root.in_(matching_values(session, Segment.root, value))
             )
-    rows = session.execute(statement.where(in_range)).all()
+            label = Segment.lemma
+    return Occurrences(by=by, query=q, statement=statement, label=label)
+
+
+type OccurrencesDep = Annotated[Occurrences, Depends(occurrences)]
+
+
+@router.get("/count")
+def count(session: SessionDep, in_range: AyaFilterDep, found: OccurrencesDep) -> Count:
+    rows = session.execute(
+        found.statement.add_columns(found.label, func.count()).where(in_range).group_by(found.label)
+    ).all()
     # Every matched value is non-null (stems with a root always have a lemma); the check narrows
     # the lemma column's str | None type
     breakdown = sorted(
         (Frequency(value=v, count=c) for v, c in rows if v is not None),
         key=lambda f: (-f.count, f.value),
     )
-    return Count(by=by, query=q, count=sum(f.count for f in breakdown), breakdown=breakdown)
+    return Count(
+        by=found.by, query=found.query, count=sum(f.count for f in breakdown), breakdown=breakdown
+    )
+
+
+@router.get("/ayas")
+def ayas(
+    session: SessionDep,
+    in_range: AyaFilterDep,
+    found: OccurrencesDep,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 10,
+) -> AyaMatches:
+    """The ayas containing the query, in Quran order, with the matched words flagged."""
+    matched = (
+        found.statement.add_columns(Word.aya_id, Word.number).where(in_range).distinct().subquery()
+    )
+    total = session.scalar(select(func.count(func.distinct(matched.c.aya_id)))) or 0
+    aya_ids = list(
+        session.scalars(
+            select(matched.c.aya_id)
+            .distinct()
+            .order_by(matched.c.aya_id)
+            .limit(page_size)
+            .offset((page - 1) * page_size)
+        )
+    )
+    matched_numbers: dict[int, set[int]] = {aya_id: set() for aya_id in aya_ids}
+    for aya_id, number in session.execute(
+        select(matched.c.aya_id, matched.c.number).where(matched.c.aya_id.in_(aya_ids))
+    ):
+        matched_numbers[aya_id].add(number)
+    rows = session.scalars(
+        select(Aya).where(Aya.id.in_(aya_ids)).order_by(Aya.id).options(selectinload(Aya.words))
+    )
+    return AyaMatches(
+        by=found.by,
+        query=found.query,
+        total=total,
+        page=page,
+        page_size=page_size,
+        ayas=[
+            AyaMatch(
+                id=aya.id,
+                surah=aya.surah_id,
+                number=aya.number,
+                words=[
+                    MatchedWord(
+                        text=word.text_uthmani, matched=word.number in matched_numbers[aya.id]
+                    )
+                    for word in aya.words
+                ],
+            )
+            for aya in rows
+        ],
+    )
 
 
 @router.get("/top")

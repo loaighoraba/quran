@@ -105,3 +105,34 @@ def test_invalid_range(client, params):
 
 def test_count_rejects_multiple_words(client):
     assert client.get("/stats/count", params={"by": "word", "q": "يا مريم"}).status_code == 422
+
+
+def test_ayas_flags_matched_words(client):
+    result = get(client, "/stats/ayas", by="word", q="مريم", range="19:16-19:34")
+    assert (result["total"], result["page"]) == (3, 1)
+    assert [(a["surah"], a["number"]) for a in result["ayas"]] == [(19, 16), (19, 27), (19, 34)]
+    flagged = [w["text"] for a in result["ayas"] for w in a["words"] if w["matched"]]
+    assert len(flagged) == 3 and all("مَرْيَم" in w for w in flagged)
+
+
+def test_ayas_flags_every_word_of_a_root(client):
+    ayas = get(client, "/stats/ayas", by="root", q="رحم", range="1")["ayas"]
+    flagged = [w["text"] for a in ayas for w in a["words"] if w["matched"]]
+    assert len(flagged) == 4  # same four occurrences as /count
+
+
+@pytest.mark.parametrize(("by", "q"), [("word", "مريم"), ("stem", "مريم"), ("root", "رحم")])
+def test_ayas_agree_with_count(client, by, q):
+    total = get(client, "/stats/ayas", by=by, q=q, page_size=100)["total"]
+    count = get(client, "/stats/count", by=by, q=q)["count"]
+    assert total <= count
+
+
+def test_ayas_paginate(client):
+    first = get(client, "/stats/ayas", by="root", q="رحم", page_size=5)
+    second = get(client, "/stats/ayas", by="root", q="رحم", page_size=5, page=2)
+    assert len(first["ayas"]) == len(second["ayas"]) == 5
+    assert first["total"] == second["total"] > 10
+    assert first["ayas"][-1]["id"] < second["ayas"][0]["id"]
+    past_end = get(client, "/stats/ayas", by="root", q="رحم", page=10_000)
+    assert past_end["ayas"] == [] and past_end["total"] == first["total"]

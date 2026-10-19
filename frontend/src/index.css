@@ -9,6 +9,7 @@
   --accent: #1f6f5c;
   --accent-soft: #e2efe9;
   --bar: #9cc7b8;
+  --highlight: #ffe58a;
   --error: #b42318;
   --radius: 10px;
   color-scheme: light;
@@ -24,6 +25,7 @@
     --accent: #5fbf9f;
     --accent-soft: #1f3a31;
     --bar: #3b7d68;
+    --highlight: #6b5a1a;
     --error: #f97066;
     color-scheme: dark;
   }
@@ -494,4 +496,68 @@ h2 {
   .bars li {
     grid-template-columns: minmax(60px, 110px) 1fr auto;
   }
+}
+
+.button-link {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  background: var(--accent-soft);
+}
+
+.aya-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.aya-ref {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.aya-text {
+  margin: 6px 0 0;
+  font-size: 1.6rem;
+  line-height: 2.2;
+}
+
+.aya-text mark {
+  background: var(--highlight);
+  color: inherit;
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+.aya-end {
+  color: var(--accent);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.card-heading a {
+  color: var(--accent);
 }

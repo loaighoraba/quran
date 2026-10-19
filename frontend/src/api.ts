@@ -31,6 +31,27 @@ export interface Count {
   breakdown: Frequency[]
 }
 
+export interface MatchedWord {
+  text: string
+  matched: boolean
+}
+
+export interface AyaMatch {
+  id: number
+  surah: number
+  number: number
+  words: MatchedWord[]
+}
+
+export interface AyaMatches {
+  by: CountBy
+  query: string
+  total: number
+  page: number
+  page_size: number
+  ayas: AyaMatch[]
+}
+
 type Params = Record<string, string | number | string[]>
 
 async function get<T>(path: string, params: Params, signal?: AbortSignal): Promise<T> {
@@ -56,6 +77,15 @@ export const getSummary = (range: string[], signal?: AbortSignal) =>
 
 export const getCount = (range: string[], by: CountBy, q: string, signal?: AbortSignal) =>
   get<Count>('/stats/count', { range, by, q }, signal)
+
+export const getAyas = (
+  range: string[],
+  by: CountBy,
+  q: string,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+) => get<AyaMatches>('/stats/ayas', { range, by, q, page, page_size: pageSize }, signal)
 
 export const getTop = (range: string[], by: CountBy, limit: number, signal?: AbortSignal) =>
   get<Frequency[]>('/stats/top', { range, by, limit }, signal)
